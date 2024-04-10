@@ -1,15 +1,16 @@
-# noteshrunk: Document Color Palette Compression
+# noteshrunk - Document Color Palette Compression
 
 This Python script compresses images by reducing the number of colors and optimizing the image representation.
 It leverages KMeans clustering for color quantization and offers various options to customize the compression process.
 All supplied images are then saved as a multi-page PDF.
+
 The idea of the program is to optimize scanned documents.
 This is a complete and improved rewrite of [mzucker's](https://github.com/mzucker/noteshrink) noteshrink.
 
 ## Features
 
 * **Color Quantization:** Reduces the number of colors in the document using KMeans clustering, leading to smaller file sizes.
-* **Background Detection and Removal:** Identifies and removes the background color, further optimizing compression.
+* **Background Detection and Removal:** Identifies and removes the background color.
 * **Customizable Palette:** Allows you to specify the number of colors in the output palette and choose between a global palette for all pages or individual palettes for each page.
 * **Color Control:** Offers the option to maximize saturation in the output image as well as to remove the background (replace with white), enhancing visual clarity.
 * **Denoising Options:** Provides median filtering and morphological operations to reduce noise and improve image quality.
@@ -33,7 +34,7 @@ This is a complete and improved rewrite of [mzucker's](https://github.com/mzucke
 1.  Clone the repository:
 
     ```bash
-    git clone https://github.com/your-username/noteshrunk.git
+    git clone https://github.com/suuuehgi/noteshrunk.git
     ```
 
 2.  Navigate to the project directory:
