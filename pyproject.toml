@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "noteshrunk"
+version = "1.0.2"
+description = "Document Color Palette Compression"
+readme = "README.md"
+requires-python = ">=3.6"
+license = {file = "LICENSE"}
+authors = [
+    {name = "suuuehgi"}
+]
+classifiers = [
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "argcomplete",
+    "numpy",
+    "scikit-image",
+    "scikit-learn",
+    "scipy",
+    "Pillow",
+]
+
+[project.scripts]
+noteshrunk = "src.noteshrunk:main"
+
+[project.urls]
+Homepage = "https://github.com/suuuehgi/noteshrunk"
+Issues = "https://github.com/suuuehgi/noteshrunk/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]

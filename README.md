@@ -17,37 +17,23 @@ This is a complete and improved rewrite of [mzucker's](https://github.com/mzucke
 
 ## Requirements
 
-- Python 3
+- argcomplete
 - NumPy
 - Pillow (PIL Fork)
-- SciPy
-- scikit-learn
+- Python 3
 - scikit-image
+- scikit-learn
+- SciPy
 
 ### Optional
 
-- argcomplete (for command-line auto-completion)
-- Ghostscript (for PDF merging)
+- Ghostscript (for PDF merging; otherwise you need to use the `-k` flag)
 
 ## Installation
 
-1.  Clone the repository:
-
-    ```bash
-    git clone https://github.com/suuuehgi/noteshrunk.git
-    ```
-
-2.  Navigate to the project directory:
-
-    ```bash
-    cd noteshrunk
-    ```
-
-3.  Install the required packages, preferably using your operating system's package manager. You might fall back to `pip` using:
-
-    ```bash
-    pip install --upgrade -r requirements.txt
-    ```
+```bash
+pipx install noteshrunk
+```
 
 ## Usage
 

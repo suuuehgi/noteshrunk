@@ -9,10 +9,7 @@ import string
 import subprocess
 import tempfile
 
-try:
-    import argcomplete
-except ImportError:
-    pass
+import argcomplete
 import numpy as np
 from PIL import Image
 from scipy.ndimage import median_filter
@@ -140,10 +137,7 @@ def parse_args():
         default=False,
         help='Overwrite existing files without asking.')
 
-    try:
-        argcomplete.autocomplete(parser)
-    except NameError:
-        pass
+    argcomplete.autocomplete(parser)
     return parser.parse_args()
 
 
