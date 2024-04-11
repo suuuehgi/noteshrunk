@@ -2,6 +2,8 @@
 # PYTHON_ARGCOMPLETE_OK
 
 import argparse
+import multiprocessing
+import os
 from pathlib import Path
 import random
 import re
@@ -68,6 +70,14 @@ def parse_args():
         default=300,
         help='DPI value of the input image/-s')
     parser.add_argument(
+        "-q",
+        "--quality",
+        type=int,
+        default=75,
+        choices=range(1, 101),  # Allow values between 1 and 100 (inclusive)
+        metavar="[1-100]",
+        help="JPEG quality of the embedded images")
+    parser.add_argument(
         "-p",
         "--percentage",
         type=float,
@@ -124,6 +134,12 @@ def parse_args():
         type=float,
         default=3,
         help="Strength of closing filtering / radius of the structuring element (disk)")
+    parser.add_argument(
+        "-j",
+        "--jobs",
+        type=int,
+        default=os.cpu_count(),
+        help="Number of processes to use (default: number of CPU cores)")
     parser.add_argument(
         '-v',
         '--verbose',
@@ -269,7 +285,9 @@ def rgb_to_sv(rgb):
     rgb_max = np.nanmax(rgb, axis=1)
 
     # Avoid division by zero
-    saturation = np.divide(rgb_max - rgb_min, rgb_max, where=(rgb_max != 0), out=np.zeros_like(rgb_max, dtype=float))
+    saturation = np.divide(rgb_max - rgb_min, rgb_max,
+                           where=(rgb_max != 0),
+                           out=np.zeros_like(rgb_max, dtype=float))
 
     value = rgb_max / 255.0
 
@@ -501,6 +519,32 @@ def rename_with_random_string(filename):
     return path.with_name(new_filename)
 
 
+def handle_file_conflict(filename):
+    """
+    Handle file conflicts by renaming with a random string.
+
+    In case of conflict, this function repeatedly generates a new filename by appending a random string
+    until a filename is found that does not conflict with an existing file.
+
+    Args:
+        filename (str / pathlib.Path): The original filename that caused a conflict.
+
+    Returns:
+        filename (pathlib.Path): A new filename that does not conflict with existing files.
+    """
+
+    if filename.exists():
+        while True:
+            filename_new = rename_with_random_string(filename)
+            if not filename_new.exists():
+                print(f"Renaming the file to: {filename_new}")
+                return filename_new  # Return the non-conflicting filename
+            else:
+                print("Random name still results in a conflict. Generating a new name.")
+    else:
+        return filename
+
+
 def check_file_and_prompt(filename):
     """
     Check if a file exists and prompt the user to overwrite, exit, or rename the file.
@@ -531,15 +575,7 @@ def check_file_and_prompt(filename):
                 exit()
 
             elif choice == '' or choice == 'r':
-                while True:
-                    filename_new = rename_with_random_string(filename)
-                    if not filename_new.exists():
-                        print(f"Renaming the file to: {filename_new}")
-                        # Renaming logic or new file creation logic goes here
-                        break
-                    else:
-                        print("Random name still results in a conflict. Generating a new name.")
-                filename = filename_new
+                filename = handle_file_conflict(filename)
                 break
 
     return filename
@@ -558,14 +594,11 @@ def save_as_pdf(image, filename, args):
         None
     """
 
-    if not args.overwrite:
-        filename = check_file_and_prompt(filename)
-
     verbose_print(args, 'Saving page as {} ...'.format(filename))
     pdf = Image.fromarray(image)
     pdf.save(filename, 'PDF',
              dpi=(args.dpi, args.dpi),
-             quality=75,
+             quality=args.quality,
              optimize=True)
 
 
@@ -602,7 +635,6 @@ def merge_pdfs(filename_paths, args):
 
     verbose_print(args, 'Merging single pages to {} ...'.format(filename))
     try:
-        #         command = ['pdftk'] + [str(f) for f in filename_paths] + ['cat', 'output', filename]
         command = ['gs',
                    '-dNOPAUSE',
                    '-sDEVICE=pdfwrite',
@@ -613,9 +645,46 @@ def merge_pdfs(filename_paths, args):
 
     except subprocess.CalledProcessError as e:
         print(f"Error: {e}")
-        print("Please ensure that pdftk is installed and accessible from the command line.")
+        print("Please ensure that gs (ghostscript) is installed and accessible from the command line.")
 
     verbose_print(args, 'Output written to', args.output)
+
+
+def process_image(file, output_filename, idx, args, global_palette=None):
+    """
+    Process a single image and save it as a PDF.
+
+    This function performs the following steps:
+    1. Reads the image from the specified file.
+    2. Creates a color palette for the image or uses a global palette if provided.
+    3. Applies the color palette to the image, potentially with saturation maximization and denoising.
+    4. Saves the processed image as a PDF file with the given output filename.
+
+    Args:
+        file (pathlib.Path): The path to the input image file.
+        output_filename (pathlib.Path): The path to the output PDF file.
+        idx (int): The index of the image in the list of files being processed. Just used for the -v flag.
+        args (argparse.Namespace): The command line arguments.
+        global_palette (tuple, optional): A tuple containing the color palette and the fitted KMeans model,
+                                          if using a global palette. Defaults to None.
+
+    Returns:
+        None
+    """
+    image = io.imread(file)
+
+    processed_images = []
+
+    verbose_print(args, 'Processing image {}'.format(idx + 1))
+
+    if args.global_palette:
+        color_palette, kmeans_model = global_palette
+    else:
+        color_palette, kmeans_model = create_palette(image, args)
+
+    image = apply_color_palette(image, color_palette, kmeans_model, args)
+
+    save_as_pdf(image, output_filename, args)
 
 
 def main():
@@ -627,7 +696,8 @@ def main():
 
     # Create a temporary folder at the output file location for storing intermediate PDFs.
     # This way the intermediate files are automatically deleted upon program exit.
-    # Each image is converted to a single-page PDF before concatenation afterwards, which reduces the memory footprint.
+    # Each image is converted to a single-page PDF before concatenation
+    # afterwards, which reduces the memory footprint.
     with tempfile.TemporaryDirectory(dir=args.output.parent, prefix='tmp_pdfs-', delete=(not args.keep_intermediate)) as temp_dir:
 
         intermediate_pdf_paths = []
@@ -635,25 +705,25 @@ def main():
         if args.global_palette:
             color_palette, kmeans_model = create_palette(file_paths, args, use_global_palette=True)
 
-        for idx, file in enumerate(file_paths):
+        with multiprocessing.Pool(args.jobs) as pool:
 
-            image = io.imread(file)
+            for idx, file in enumerate(file_paths):
 
-            processed_images = []
+                output_filename = args.output.parent / temp_dir / Path(file.name).with_suffix('.pdf')
 
-            verbose_print(args, 'Processing image {}/{}'.format(idx + 1, len(file_paths)))
+                # E.g. the same input file multiple times
+                if output_filename in intermediate_pdf_paths or output_filename.exists():
+                    output_filename = rename_with_random_string(output_filename)
 
-            # Otherwise color_palette and kmeans_model are already defined by above.
-            if not args.global_palette:
-                color_palette, kmeans_model = create_palette(image, args)
+                # Apply asynchronously for potentially faster execution since the order is
+                # preserved via intermediate_pdf_paths
+                pool.apply_async(process_image, (file, output_filename, idx, args,
+                                 (color_palette, kmeans_model) if args.global_palette else None))
 
-            image = apply_color_palette(image, color_palette, kmeans_model, args)
+                intermediate_pdf_paths.append(output_filename)
 
-            output_filename = args.output.parent / temp_dir / Path(file.name).with_suffix('.pdf')
-
-            save_as_pdf(image, output_filename, args)
-
-            intermediate_pdf_paths.append(output_filename)
+            pool.close()
+            pool.join()
 
         verbose_print(
             args,
