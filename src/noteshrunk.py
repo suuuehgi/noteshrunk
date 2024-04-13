@@ -688,12 +688,34 @@ def process_image(file, output_filename, idx, args, global_palette=None):
     save_as_pdf(image, output_filename, args)
 
 
+def check_file_existence(files):
+    """
+    Checks if a file / a list of files exist and raises an error if any are missing.
+
+    Args:
+        files (str / pathlib.Path or list of str / pathlib.Path): Files to be tested for existence.
+
+    Raises:
+        FileNotFoundError: If at least one file does not exist.
+    """
+    # Ensure <files> is a list.
+    # In case <files> is neither str, nor Path, nor list, the error is raised by pathlib.Path below
+    if not isinstance(files, list):
+        files = [files]
+
+    for file in files:
+        path = Path(file)
+        if not path.exists():
+            raise FileNotFoundError(f"File not found: {file}")
+
+
 def main():
     """
     The main function of the program.
     """
     args = parse_args()
     file_paths = sort_filenames(args.files)
+    check_file_existence(file_paths)
 
     # Create a temporary folder at the output file location for storing intermediate PDFs.
     # This way the intermediate files are automatically deleted upon program exit.
