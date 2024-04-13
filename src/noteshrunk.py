@@ -2,7 +2,7 @@
 # PYTHON_ARGCOMPLETE_OK
 
 import argparse
-import multiprocessing
+from concurrent.futures import ThreadPoolExecutor
 import os
 from pathlib import Path
 import random
@@ -199,12 +199,12 @@ def sample_pixels(image, percentage):
     """
     total_pixels = image.shape[0] * image.shape[1]
     sample_size = int(total_pixels * (percentage / 100))
-    np.random.seed(0)
-    indices = np.random.choice(total_pixels, size=sample_size, replace=False)
+    rng = np.random.default_rng(0)
+    indices = rng.choice(total_pixels, size=sample_size, replace=False)
     return image.reshape((-1, 3))[indices]
 
 
-def perform_kmeans(image, n_clusters):
+def perform_kmeans(image, n_clusters, args):
     """
     Performs k-means clustering on the image and return the cluster centers and the model.
 
@@ -217,9 +217,13 @@ def perform_kmeans(image, n_clusters):
     """
     flattened_image = image.reshape((-1, 3))
     kmeans = KMeans(
+        init = 'k-means++',
+        n_init=1,
         n_clusters=n_clusters,
-        n_init='auto',
-        random_state=0).fit(flattened_image)
+        copy_x = False,
+        random_state=np.random.RandomState(0),
+        verbose = args.verbose
+        ).fit(flattened_image)
     return kmeans.cluster_centers_, kmeans
 
 
@@ -328,7 +332,7 @@ def create_palette(image_s, args, use_global_palette=False):
     foreground_pixels = sampled_pixels[foreground_mask]
 
     kmeans_colors, kmeans_model = perform_kmeans(
-        foreground_pixels, args.n_colors - 1)
+        foreground_pixels, args.n_colors - 1, args)
 
     if args.white_background:
         color_palette = np.vstack(
@@ -728,7 +732,7 @@ def main():
         if args.global_palette:
             color_palette, kmeans_model = create_palette(file_paths, args, use_global_palette=True)
 
-        with multiprocessing.Pool(args.jobs) as pool:
+        with ThreadPoolExecutor(max_workers=args.jobs) as executor:
 
             for idx, file in enumerate(file_paths):
 
@@ -738,15 +742,12 @@ def main():
                 if output_filename in intermediate_pdf_paths or output_filename.exists():
                     output_filename = rename_with_random_string(output_filename)
 
-                # Apply asynchronously for potentially faster execution since the order is
-                # preserved via intermediate_pdf_paths
-                pool.apply_async(process_image, (file, output_filename, idx, args,
-                                 (color_palette, kmeans_model) if args.global_palette else None))
+                executor.submit(process_image, file=file, output_filename=output_filename, idx=idx, args=args,
+                                 global_palette=(color_palette, kmeans_model) if args.global_palette else None)
 
                 intermediate_pdf_paths.append(output_filename)
 
-            pool.close()
-            pool.join()
+            executor.shutdown(wait=True)
 
         verbose_print(
             args,
