@@ -83,8 +83,11 @@ target/
 profile_default/
 ipython_config.py
 
-# misc
+# Vim
 *.un~
+*.swp
+
+# misc
 output.pdf
 
 # pyenv
