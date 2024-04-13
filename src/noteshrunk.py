@@ -564,7 +564,7 @@ def check_file_and_prompt(filename):
     if file_path.exists():
 
         while True:
-            choice = input("File exists. Overwrite? (y: yes; n: no and quit; r: rename) [ynR]: ").strip().lower()
+            choice = input('File "{}" exists. Overwrite? (y: yes; n: no and quit; r: rename) [ynR]: '.format(file_path)).strip().lower()
 
             if choice == 'y':
                 print(f"Overwriting the file: {filename}")
@@ -607,6 +607,7 @@ def verbose_print(args, *message, conditions=[]):
     Prints a <message> if all given <conditions> are True.
 
     Args:
+        args (argparse.Namespace): The command line arguments
         message (str): The message to be printed.
         conditions (list of bool): A list of boolean constraints that must all be True for the message to be printed.
 
@@ -698,7 +699,7 @@ def main():
     # This way the intermediate files are automatically deleted upon program exit.
     # Each image is converted to a single-page PDF before concatenation
     # afterwards, which reduces the memory footprint.
-    with tempfile.TemporaryDirectory(dir=args.output.parent, prefix='tmp_pdfs-', delete=(not args.keep_intermediate)) as temp_dir:
+    with tempfile.TemporaryDirectory(dir=os.getcwd(), prefix='tmp_pdfs-', delete=(not args.keep_intermediate)) as temp_dir:
 
         intermediate_pdf_paths = []
 
