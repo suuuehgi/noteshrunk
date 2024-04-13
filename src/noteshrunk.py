@@ -2,7 +2,7 @@
 # PYTHON_ARGCOMPLETE_OK
 
 import argparse
-import multiprocessing
+from concurrent.futures import ThreadPoolExecutor
 import os
 from pathlib import Path
 import random
@@ -706,7 +706,7 @@ def main():
         if args.global_palette:
             color_palette, kmeans_model = create_palette(file_paths, args, use_global_palette=True)
 
-        with multiprocessing.Pool(args.jobs) as pool:
+        with ThreadPoolExecutor(max_workers=args.jobs) as executor:
 
             for idx, file in enumerate(file_paths):
 
@@ -716,15 +716,12 @@ def main():
                 if output_filename in intermediate_pdf_paths or output_filename.exists():
                     output_filename = rename_with_random_string(output_filename)
 
-                # Apply asynchronously for potentially faster execution since the order is
-                # preserved via intermediate_pdf_paths
-                pool.apply_async(process_image, (file, output_filename, idx, args,
-                                 (color_palette, kmeans_model) if args.global_palette else None))
+                executor.submit(process_image, file=file, output_filename=output_filename, idx=idx, args=args,
+                                 global_palette=(color_palette, kmeans_model) if args.global_palette else None)
 
                 intermediate_pdf_paths.append(output_filename)
 
-            pool.close()
-            pool.join()
+            executor.shutdown(wait=True)
 
         verbose_print(
             args,
