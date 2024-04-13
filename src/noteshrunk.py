@@ -332,7 +332,7 @@ def create_palette(image_s, args, use_global_palette=False):
     foreground_pixels = sampled_pixels[foreground_mask]
 
     kmeans_colors, kmeans_model = perform_kmeans(
-        foreground_pixels, args.n_colors - 1)
+        foreground_pixels, args.n_colors - 1, args)
 
     if args.white_background:
         color_palette = np.vstack(
