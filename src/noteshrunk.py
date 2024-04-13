@@ -199,12 +199,12 @@ def sample_pixels(image, percentage):
     """
     total_pixels = image.shape[0] * image.shape[1]
     sample_size = int(total_pixels * (percentage / 100))
-    np.random.seed(0)
-    indices = np.random.choice(total_pixels, size=sample_size, replace=False)
+    rng = np.random.default_rng(0)
+    indices = rng.choice(total_pixels, size=sample_size, replace=False)
     return image.reshape((-1, 3))[indices]
 
 
-def perform_kmeans(image, n_clusters):
+def perform_kmeans(image, n_clusters, args):
     """
     Performs k-means clustering on the image and return the cluster centers and the model.
 
@@ -217,9 +217,13 @@ def perform_kmeans(image, n_clusters):
     """
     flattened_image = image.reshape((-1, 3))
     kmeans = KMeans(
+        init = 'k-means++',
+        n_init=1,
         n_clusters=n_clusters,
-        n_init='auto',
-        random_state=0).fit(flattened_image)
+        copy_x = False,
+        random_state=np.random.RandomState(0),
+        verbose = args.verbose
+        ).fit(flattened_image)
     return kmeans.cluster_centers_, kmeans
 
 
