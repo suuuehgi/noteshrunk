@@ -42,7 +42,8 @@ pipx install noteshrunk
 
 ```
 noteshrunk [-h] [-o OUTPUT] [-w] [-s] [-n N_COLORS] [-d DPI] [-q [1-100]] [-l]
-           [-p PERCENTAGE] [-j JOBS] [-y] [-ts THRESHOLD_SATURATION] [-tv THRESHOLD_VALUE]
+           [-p PERCENTAGE] [-j JOBS] [-y]
+           [-ts THRESHOLD_SATURATION] [-tv THRESHOLD_VALUE]
            [--denoise_median] [--denoise_closing] [--denoise_opening]
            [-ms MEDIAN_STRENGTH] [-cs CLOSING_STRENGTH] [-os OPENING_STRENGTH]
            [-k] [-v] [--version] files [files ...]
