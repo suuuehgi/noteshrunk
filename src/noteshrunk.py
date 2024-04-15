@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
+VERSION = '1.2.1'
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -32,7 +33,10 @@ def parse_args():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         description='Compress scanned documents')
 
-    parser.add_argument('files', nargs='+', help='Input image file paths.')
+    parser.add_argument(
+        'files',
+        nargs='+',
+        help='Input image file paths.')
     parser.add_argument(
         '-o',
         '--output',
@@ -152,6 +156,11 @@ def parse_args():
         action='store_true',
         default=False,
         help='Overwrite existing files without asking.')
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=VERSION,
+        help='Show program version and exit')
 
     argcomplete.autocomplete(parser)
     return parser.parse_args()
@@ -718,6 +727,7 @@ def main():
     The main function of the program.
     """
     args = parse_args()
+
     file_paths = sort_filenames(args.files)
     check_file_existence(file_paths)
 
