@@ -18,6 +18,8 @@ This is a complete and improved rewrite of [mzucker's](https://github.com/mzucke
 
 ## Requirements
 
+### Python Packages
+
 - argcomplete
 - NumPy
 - Pillow (PIL Fork)
@@ -26,9 +28,9 @@ This is a complete and improved rewrite of [mzucker's](https://github.com/mzucke
 - scikit-learn
 - SciPy
 
-### Optional
+### Other
 
-- Ghostscript (for PDF merging; otherwise you need to use the `-k` flag)
+- Ghostscript (executable `gs` in PATH - for PDF merging)
 
 ## Installation
 
@@ -39,11 +41,11 @@ pipx install noteshrunk
 ## Usage
 
 ```
-noteshrunk [-h] [-o OUTPUT] [-w] [-g] [-s] [-n N_COLORS] [-d DPI] [-q [1-100]]
-           [-p PERCENTAGE] [-k] [-ts THRESHOLD_SATURATION] [-tv THRESHOLD_VALUE]
-           [--denoise_median] [--denoise_closing] [--denoise_opening] [-ms MEDIAN_STRENGTH]
-           [-os OPENING_STRENGTH] [-cs CLOSING_STRENGTH] [-j JOBS] [-v] [-y]
-           files [files ...]
+noteshrunk [-h] [-o OUTPUT] [-w] [-s] [-n N_COLORS] [-d DPI] [-q [1-100]] [-l]
+           [-p PERCENTAGE] [-j JOBS] [-y] [-ts THRESHOLD_SATURATION] [-tv THRESHOLD_VALUE]
+           [--denoise_median] [--denoise_closing] [--denoise_opening]
+           [-ms MEDIAN_STRENGTH] [-cs CLOSING_STRENGTH] [-os OPENING_STRENGTH]
+           [-k] [-v] [--version] files [files ...]
 ```
 
 ### Arguments
@@ -51,24 +53,25 @@ noteshrunk [-h] [-o OUTPUT] [-w] [-g] [-s] [-n N_COLORS] [-d DPI] [-q [1-100]]
 * `files`: A list of paths to the input image files.
 * `-o`, `--output`: Path to the output PDF file (default: `output.pdf`).
 * `-w`, `--white_background`: Use white background instead of dominant color.
-* `-g`, `--global_palette`: Use the same color palette for all images by sampling a percentage of the pixels from every input image.
 * `-s`, `--saturate`: Maximize saturation in the output image.
 * `-n`, `--n_colors`: Number of colors in the palette (default: 8).
 * `-d`, `--dpi`: DPI value of the input images (default: 300).
-* `-q`, `--quality`: JPEG quality of the embedded images (1-100, default: 75).
-* `-p`, `--percentage`: Percentage of pixels to sample from every image for global palette creation (default: 10).
-* `-k`, `--keep_intermediate`: Keep the intermediate single-page PDFs.
+* `-q`, `--quality`: JPEG quality of the images embedded in the PDF (1-100, default: 75).
+* `-l`, `--local_palette`: Create an individual color palette for each image (by sampling a -p percentage of the pixels of that image) instead of a global palette (by sampling a -p percentage of the pixels of each input image).
+* `-p`, `--percentage`: Percentage of pixels to sample from each input image for color palette creation (default: 10).
+* `-j`, `--jobs`: Number of threads to use for multi-threading (default: number of CPU cores).
+* `-y`, `--overwrite`: Overwrite existing files without asking.
 * `-ts`, `--threshold_saturation`: HSV saturation threshold (in percent) used for background detection (default: 15).
 * `-tv`, `--threshold_value`: HSV value threshold (in percent) used for background detection (default: 25).
 * `--denoise_median`: Apply median denoising.
 * `--denoise_closing`: Apply morphological closing on the background mask.
 * `--denoise_opening`: Apply morphological opening on the background mask.
 * `-ms`, `--median_strength`: Strength of median filtering (default: 3).
-* `-os`, `--opening_strength`: Strength of opening filtering / radius of the structuring element (disk, default: 3).
 * `-cs`, `--closing_strength`: Strength of closing filtering / radius of the structuring element (disk, default: 3).
-* `-j`, `--jobs`: Number of processes to use (default: number of CPU cores).
+* `-os`, `--opening_strength`: Strength of opening filtering / radius of the structuring element (disk, default: 3).
+* `-k`, `--keep_intermediate`: Keep the intermediate single-page PDFs.
 * `-v`, `--verbose`: Verbose output.
-* `-y`, `--overwrite`: Overwrite existing files without asking.
+* `--version`: Show program version and exit.
 
 ## Examples
 
@@ -84,9 +87,9 @@ noteshrunk [-h] [-o OUTPUT] [-w] [-g] [-s] [-n N_COLORS] [-d DPI] [-q [1-100]]
     noteshrunk -w -n 16 image1.jpg image2.png
     ```
 
-3.  Compress images using a global palette and keep intermediate files while disabling multi-processing:
+3.  Compress images using a local color palette and keep intermediate files while disabling multi-threading:
     ```bash
-    noteshrunk -g -j 1 -k *.jpg
+    noteshrunk -l -j 1 -k *.jpg
     ```
 
 ## Contributing

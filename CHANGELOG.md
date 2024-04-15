@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3] - 2024-04-15
+
+### Changed
+
+- Replaced `--global_palette` with `--local_palette` to make the global palette the default.
+
 ## [1.2] - 2024-04-13
 
 ### Added

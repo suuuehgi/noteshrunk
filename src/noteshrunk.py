@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
-VERSION = '1.2.1'
+VERSION = '1.3.0'
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -50,12 +50,6 @@ def parse_args():
         default=False,
         help='Use white background instead of dominant color.')
     parser.add_argument(
-        '-g',
-        '--global_palette',
-        action='store_true',
-        default=False,
-        help='Use the same color palette for all images by sampling -p percent of the pixels from every input image.')
-    parser.add_argument(
         '-s',
         '--saturate',
         action='store_true',
@@ -80,19 +74,31 @@ def parse_args():
         default=75,
         choices=range(1, 101),  # Allow values between 1 and 100 (inclusive)
         metavar="[1-100]",
-        help="JPEG quality of the embedded images")
+        help='JPEG quality of the images embedded in the PDF')
+    parser.add_argument(
+        '-l',
+        '--local_palette',
+        action='store_true',
+        default=False,
+        help='Create an individual color palette for each image (by sampling a -p percentage of the pixels of that image) instead of a global palette (by sampling a -p percentage of the pixels of each input image).')
     parser.add_argument(
         "-p",
         "--percentage",
         type=float,
         default=10,
-        help="Percentage of pixels to sample from every image.")
+        help="Percentage of pixels to sample from each image.")
     parser.add_argument(
-        '-k',
-        '--keep_intermediate',
+        "-j",
+        "--jobs",
+        type=int,
+        default=os.cpu_count(),
+        help="Number of processes to use (default: number of CPU cores)")
+    parser.add_argument(
+        '-y',
+        '--overwrite',
         action='store_true',
         default=False,
-        help='Do not delete intermediate (single-page) PDFs afterwards.')
+        help='Overwrite existing files without asking.')
     parser.add_argument(
         "-ts",
         "--threshold_saturation",
@@ -127,35 +133,29 @@ def parse_args():
         default=3,
         help="Strength of median filtering")
     parser.add_argument(
-        "-os",
-        "--opening_strength",
-        type=float,
-        default=3,
-        help="Strength of opening filtering / radius of the structuring element (disk)")
-    parser.add_argument(
         "-cs",
         "--closing_strength",
         type=float,
         default=3,
         help="Strength of closing filtering / radius of the structuring element (disk)")
     parser.add_argument(
-        "-j",
-        "--jobs",
-        type=int,
-        default=os.cpu_count(),
-        help="Number of processes to use (default: number of CPU cores)")
+        "-os",
+        "--opening_strength",
+        type=float,
+        default=3,
+        help="Strength of opening filtering / radius of the structuring element (disk)")
+    parser.add_argument(
+        '-k',
+        '--keep_intermediate',
+        action='store_true',
+        default=False,
+        help='Do not delete intermediate (single-page) PDFs afterwards.')
     parser.add_argument(
         '-v',
         '--verbose',
         action='store_true',
         default=False,
         help='Verbose output')
-    parser.add_argument(
-        '-y',
-        '--overwrite',
-        action='store_true',
-        default=False,
-        help='Overwrite existing files without asking.')
     parser.add_argument(
         '--version',
         action='version',
@@ -691,10 +691,10 @@ def process_image(file, output_filename, idx, args, global_palette=None):
 
     verbose_print(args, 'Processing image {}'.format(idx + 1))
 
-    if args.global_palette:
-        color_palette, kmeans_model = global_palette
-    else:
+    if args.local_palette:
         color_palette, kmeans_model = create_palette(image, args)
+    else:
+        color_palette, kmeans_model = global_palette
 
     image = apply_color_palette(image, color_palette, kmeans_model, args)
 
@@ -739,7 +739,7 @@ def main():
 
         intermediate_pdf_paths = []
 
-        if args.global_palette:
+        if not args.local_palette:
             color_palette, kmeans_model = create_palette(file_paths, args, use_global_palette=True)
 
         with ThreadPoolExecutor(max_workers=args.jobs) as executor:
@@ -753,7 +753,7 @@ def main():
                     output_filename = rename_with_random_string(output_filename)
 
                 executor.submit(process_image, file=file, output_filename=output_filename, idx=idx, args=args,
-                                 global_palette=(color_palette, kmeans_model) if args.global_palette else None)
+                                 global_palette=(color_palette, kmeans_model) if not args.local_palette else None)
 
                 intermediate_pdf_paths.append(output_filename)
 
