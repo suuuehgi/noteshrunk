@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
-VERSION = '1.3.0'
+VERSION = '1.3.1'
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -18,7 +18,6 @@ from PIL import Image
 from scipy.ndimage import median_filter
 from skimage import io
 from sklearn.cluster import KMeans
-from skimage.color import rgb2hsv
 from skimage.morphology import binary_opening, binary_closing, square, disk
 
 
@@ -464,7 +463,7 @@ def apply_color_palette(image, color_palette, kmeans_model, args):
         verbose_print(args, 'Applying closing ...')
         # disk(<1) results in id-operation or zero-matrix and is hence useless
         kernel = disk(
-            args.opening_strength) if args.opening_strength >= 1 else square(2)
+            args.closing_strength) if args.closing_strength >= 1 else square(2)
         foreground_mask = binary_closing(
             foreground_mask.reshape(shape[:-1]), kernel).flatten()
 
