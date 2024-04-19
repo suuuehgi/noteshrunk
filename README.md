@@ -25,7 +25,7 @@ This is a complete and improved rewrite of [mzucker's](https://github.com/mzucke
   </tr>
   <tr>
     <td></td>
-    <td><pre><code>noteshrunk -w -s --unsharp_mask -ur 2 -ua 1 example_1-orig.jpg</pre></code></td>
+    <td><code>noteshrunk -w -s --unsharp_mask -ur 2 -ua 1 example_1-orig.jpg</code></td>
   </tr>
 
 </table>
