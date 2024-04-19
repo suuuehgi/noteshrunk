@@ -25,11 +25,11 @@ This is a complete and improved rewrite of [mzucker's](https://github.com/mzucke
   </tr>
   <tr>
     <td></td>
-    <td>`noteshrunk -w -s --unsharp_mask -ur 2 -ua 1 example_1-orig.jpg`</td>
+    <td><pre><code>noteshrunk -w -s --unsharp_mask -ur 2 -ua 1 example_1-orig.jpg</pre></code></td>
   </tr>
 
 </table>
-([Image Source](https://commons.wikimedia.org/wiki/File:BREAKFAST_%28held_by%29_NIPPON_YUSEN_KAISHA_-_S.S.KOBE_MARU_%28at%29_EN_ROUTE_%28SS%29_%28NYPL_Hades-274833-469108%29.jpg))
+\([Image Source](https://commons.wikimedia.org/wiki/File:BREAKFAST_%28held_by%29_NIPPON_YUSEN_KAISHA_-_S.S.KOBE_MARU_%28at%29_EN_ROUTE_%28SS%29_%28NYPL_Hades-274833-469108%29.jpg)\)
 
 ## Requirements
 
