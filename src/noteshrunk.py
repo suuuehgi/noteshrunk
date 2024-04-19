@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
-VERSION = '1.3.1'
+VERSION = '1.4.0'
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -18,7 +18,8 @@ from PIL import Image
 from scipy.ndimage import median_filter
 from skimage import io
 from sklearn.cluster import KMeans
-from skimage.morphology import binary_opening, binary_closing, square, disk
+from skimage.filters import unsharp_mask
+from skimage.morphology import binary_opening, square, disk
 
 
 def parse_args():
@@ -108,7 +109,7 @@ def parse_args():
         "-tv",
         "--threshold_value",
         type=float,
-        default=25,
+        default=20,
         help="HSV value threshold (in percent) used for the background detection.")
     parser.add_argument(
         '--denoise_median',
@@ -116,15 +117,15 @@ def parse_args():
         default=False,
         help='Apply median denoising.')
     parser.add_argument(
-        '--denoise_closing',
-        action='store_true',
-        default=False,
-        help='Apply morphological closing on the (binary) background mask.')
-    parser.add_argument(
         '--denoise_opening',
         action='store_true',
         default=False,
         help='Apply morphological opening on the (binary) background mask.')
+    parser.add_argument(
+        '--unsharp_mask',
+        action='store_true',
+        default=False,
+        help='Apply unsharp masking with radius <-ur> and amount <-ua> to the V-channel of the output image in HSV representation.')
     parser.add_argument(
         "-ms",
         "--median_strength",
@@ -132,17 +133,23 @@ def parse_args():
         default=3,
         help="Strength of median filtering")
     parser.add_argument(
-        "-cs",
-        "--closing_strength",
-        type=float,
-        default=3,
-        help="Strength of closing filtering / radius of the structuring element (disk)")
-    parser.add_argument(
         "-os",
         "--opening_strength",
         type=float,
         default=3,
         help="Strength of opening filtering / radius of the structuring element (disk)")
+    parser.add_argument(
+        "-ua",
+        "--unsharp_amount",
+        type=float,
+        default=2,
+        help="The amount used for unsharp masking.")
+    parser.add_argument(
+        "-ur",
+        "--unsharp_radius",
+        type=float,
+        default=5,
+        help="The radius used for unsharp masking.")
     parser.add_argument(
         '-k',
         '--keep_intermediate',
@@ -451,20 +458,13 @@ def apply_color_palette(image, color_palette, kmeans_model, args):
         threshold_saturation=args.threshold_saturation,
         threshold_value=args.threshold_value)
 
+    # morphological opening of the binary foreground mask to remove e.g. dust speckles
     if args.denoise_opening:
         verbose_print(args, 'Applying opening ...')
         # disk(<1) results in id-operation or zero-matrix and is hence useless
         kernel = disk(
             args.opening_strength) if args.opening_strength >= 1 else square(2)
         foreground_mask = binary_opening(
-            foreground_mask.reshape(shape[:-1]), kernel).flatten()
-
-    if args.denoise_closing:
-        verbose_print(args, 'Applying closing ...')
-        # disk(<1) results in id-operation or zero-matrix and is hence useless
-        kernel = disk(
-            args.closing_strength) if args.closing_strength >= 1 else square(2)
-        foreground_mask = binary_closing(
             foreground_mask.reshape(shape[:-1]), kernel).flatten()
 
     labels = np.zeros(image.shape[0], dtype='uint8')
@@ -485,16 +485,28 @@ def apply_color_palette(image, color_palette, kmeans_model, args):
     # set background to the background color
     image[~foreground_mask] = color_palette[0]
 
+    if args.unsharp_mask:
+        verbose_print(args, 'Applying unsharp mask filtering ...')
+
+        image = np.array( Image.fromarray(image.reshape(shape), mode='RGB').convert('HSV') )
+
+        #
+        tmp_max = np.max(image[:,:,2])
+        image[:,:,2] = (unsharp_mask(image[:,:,2],
+                                    radius=args.unsharp_radius,
+                                    amount=args.unsharp_amount) * tmp_max).round(0).astype('uint8')
+        image = np.array( Image.fromarray(image, mode='HSV').convert('RGB') ).reshape((-1,3))
+
     if args.denoise_median:
         verbose_print(args, 'Applying median filtering ...')
         # Median filtering is per color channel. In RGB space this would lead
         # to color deviations.
-        image = Image.fromarray(image.reshape(shape)).convert('HSV')
+        image = Image.fromarray(image.reshape(shape), mode='RGB').convert('HSV')
         image = median_filter(
             image,
             size=(args.median_strength, args.median_strength, 1)
         )
-        image = Image.fromarray(image, 'HSV').convert('RGB')
+        image = Image.fromarray(image, mode='HSV').convert('RGB')
         return np.array(image)
 
     else:
@@ -658,7 +670,8 @@ def merge_pdfs(filename_paths, args):
 
     except subprocess.CalledProcessError as e:
         print(f"Error: {e}")
-        print("Please ensure that gs (ghostscript) is installed and accessible from the command line.")
+        print("Error:", e.stderr.decode('utf-8') if e.stderr is not None else None)
+        print("Stdout was:", e.stdout.decode('utf-8') if e.stdout is not None else None)
 
     verbose_print(args, 'Output written to', args.output)
 
@@ -743,6 +756,7 @@ def main():
 
         with ThreadPoolExecutor(max_workers=args.jobs) as executor:
 
+            threads = []
             for idx, file in enumerate(file_paths):
 
                 output_filename = args.output.parent / temp_dir / Path(file.name).with_suffix('.pdf')
@@ -751,12 +765,18 @@ def main():
                 if output_filename in intermediate_pdf_paths or output_filename.exists():
                     output_filename = rename_with_random_string(output_filename)
 
-                executor.submit(process_image, file=file, output_filename=output_filename, idx=idx, args=args,
-                                 global_palette=(color_palette, kmeans_model) if not args.local_palette else None)
+                threads.append(executor.submit(process_image, file=file, output_filename=output_filename, idx=idx, args=args,
+                                 global_palette=(color_palette, kmeans_model) if not args.local_palette else None))
 
                 intermediate_pdf_paths.append(output_filename)
 
             executor.shutdown(wait=True)
+            try:
+                for f in threads:
+                    f.result()  # This will raise a ValueError in case the thread crashed
+            except ValueError as e:
+                print(f"Caught an error: {e}")
+
 
         verbose_print(
             args,

@@ -13,8 +13,18 @@ This is a complete and improved rewrite of [mzucker's](https://github.com/mzucke
 * **Background Detection and Removal:** Identifies and removes the background color.
 * **Customizable Palette:** Allows you to specify the number of colors in the output palette and choose between a global palette for all pages or individual palettes for each page.
 * **Color Control:** Offers the option to maximize saturation in the output image as well as to remove the background (replace with white), enhancing visual clarity.
-* **Denoising Options:** Provides median filtering and morphological operations to reduce noise and improve image quality.
+* **Denoising Options:** Provides median filtering, morphological opening and unsharp masking to reduce noise and improve image quality.
 * **Parallel processing:** Utilizes multiple CPU cores for faster processing of multiple images.
+
+## Examples
+
+<table>
+  <tr>
+    <td><img src="examples/example_1-orig.jpg" alt="Original Image" width="300"/></td>
+    <td><img src="examples/example_1-orig.jpg" alt="Processed Image" width="300"/></td>
+  </tr>
+</table>
+([Image Source](https://commons.wikimedia.org/wiki/File:BREAKFAST_(held_by)_NIPPON_YUSEN_KAISHA_-_S.S.KOBE_MARU_(at)_EN_ROUTE_(SS)_(NYPL_Hades-274833-469108).jpg))
 
 ## Requirements
 
@@ -44,8 +54,8 @@ pipx install noteshrunk
 noteshrunk [-h] [-o OUTPUT] [-w] [-s] [-n N_COLORS] [-d DPI] [-q [1-100]] [-l]
            [-p PERCENTAGE] [-j JOBS] [-y]
            [-ts THRESHOLD_SATURATION] [-tv THRESHOLD_VALUE]
-           [--denoise_median] [--denoise_closing] [--denoise_opening]
-           [-ms MEDIAN_STRENGTH] [-cs CLOSING_STRENGTH] [-os OPENING_STRENGTH]
+           [--denoise_median] [--denoise_opening] [--unsharp_mask]
+           [-ms MEDIAN_STRENGTH] [-cs CLOSING_STRENGTH] [-ua UNSHARP_AMOUNT] [-ur UNSHARP_RADIUS]
            [-k] [-v] [--version] files [files ...]
 ```
 
@@ -64,11 +74,10 @@ noteshrunk [-h] [-o OUTPUT] [-w] [-s] [-n N_COLORS] [-d DPI] [-q [1-100]] [-l]
 * `-y`, `--overwrite`: Overwrite existing files without asking.
 * `-ts`, `--threshold_saturation`: HSV saturation threshold (in percent) used for background detection (default: 15).
 * `-tv`, `--threshold_value`: HSV value threshold (in percent) used for background detection (default: 25).
-* `--denoise_median`: Apply median denoising.
-* `--denoise_closing`: Apply morphological closing on the background mask.
-* `--denoise_opening`: Apply morphological opening on the background mask.
+* `--denoise_median`: Apply median denoising on the output image with strength `-ms`.
+* `--denoise_opening`: Apply morphological opening on the background mask with strength `-os`.
+* `--unsharp_mask`: Apply unsharp masking on the final image with radius `-ur` and amount `-ua`.
 * `-ms`, `--median_strength`: Strength of median filtering (default: 3).
-* `-cs`, `--closing_strength`: Strength of closing filtering / radius of the structuring element (disk, default: 3).
 * `-os`, `--opening_strength`: Strength of opening filtering / radius of the structuring element (disk, default: 3).
 * `-k`, `--keep_intermediate`: Keep the intermediate single-page PDFs.
 * `-v`, `--verbose`: Verbose output.
