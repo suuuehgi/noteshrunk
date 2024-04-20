@@ -22,8 +22,8 @@ This is a complete and improved rewrite of [mzucker's](https://github.com/mzucke
 
 <table>
   <tr>
-    <td><img src="examples/example_1-orig.jpg" alt="Original Image" width="400" height="570"/></td>
-    <td><img src="examples/example_1-ns.jpg" alt="Processed Image" width="400" height="570"/></td>
+    <td width="50%"><img src="examples/example_1-orig.jpg" alt="Original Image" width="400" height="570"/></td>
+    <td width="50%"><img src="examples/example_1-ns.jpg" alt="Processed Image" width="400" height="570"/></td>
   </tr>
   <tr>
     <td>Original Image</td>
