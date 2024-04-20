@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4] - 2024-04-20
+
+### Added
+
+- `--unsharp_mask`
+
+Helps enhance fine textures.
+
+### Removed
+
+- `--denoise_closing`
+
+Reason: `--denoise_closing` was a morphological closing on the binary foreground mask.
+Morphological *opening* on the binary foreground mask removes small segments by effectively replacing them with background.
+Morphological *closing* might be useful for fine textures when applied to the actual image, but I don't see any benefit to applying it to the mask.
+
 ## [1.3] - 2024-04-15
 
 ### Changed
