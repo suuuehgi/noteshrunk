@@ -62,8 +62,8 @@ Morphological Opening swallows fine structures, but unsharp masking helps preser
 
 <table>
   <tr>
-    <td><img src="examples/example_3-orig.jpg" alt="Original Image" width="400" height="486"/></td>
-    <td><img src="examples/example_3-advanced.jpg" alt="Processed Image" width="400" height="486"/></td>
+    <td style="width: 400px;"><img src="examples/example_3-orig.jpg" alt="Original Image" width="400" height="486"/></td>
+    <td style="width: 400px;"><img src="examples/example_3-advanced.jpg" alt="Processed Image" width="400" height="486"/></td>
   </tr>
   <tr>
     <td>Original Image</td>
