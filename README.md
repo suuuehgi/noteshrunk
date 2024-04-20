@@ -30,6 +30,27 @@ This is a complete and improved rewrite of [mzucker's](https://github.com/mzucke
 </table>
 Image Source: https://commons.wikimedia.org/wiki/File:BREAKFAST_(held_by)_NIPPON_YUSEN_KAISHA_-_S.S.KOBE_MARU_(at)_EN_ROUTE_(SS)_(NYPL_Hades-274833-469108).jpg
 
+<table>
+  <tr>
+    <td><img src="examples/example_2-orig.jpg" alt="Original Image" width="970" height="217"/></td>
+  </tr>
+  <tr>
+    <td><code>Original Image (own)</code></td>
+  </tr>
+  <tr>
+    <td><img src="examples/example_2-opening.jpg" alt="Morphological Opening" width="970" height="217"/></td>
+  </tr>
+  <tr>
+    <td><code>noteshrunk -w --denoise_opening -os .9</code></td>
+  </tr>
+  <tr>
+    <td><img src="examples/example_2-unsharp.jpg" alt="Unsharp Masking" width="970" height="217"/></td>
+  </tr>
+  <tr>
+    <td><code>noteshrunk -w --unsharp_mask </code></td>
+  </tr>
+</table>
+
 ## Requirements
 
 ### Python Packages
