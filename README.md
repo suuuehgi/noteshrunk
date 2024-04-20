@@ -18,6 +18,8 @@ This is a complete and improved rewrite of [mzucker's](https://github.com/mzucke
 
 ## Examples
 
+### Generic Example
+
 <table>
   <tr>
     <td><img src="examples/example_1-orig.jpg" alt="Original Image" width="400" height="570"/></td>
@@ -28,7 +30,12 @@ This is a complete and improved rewrite of [mzucker's](https://github.com/mzucke
     <td><code>noteshrunk -w -s --unsharp_mask -ur 2 -ua 1</code></td>
   </tr>
 </table>
+
 Image Source: https://commons.wikimedia.org/wiki/File:BREAKFAST_(held_by)_NIPPON_YUSEN_KAISHA_-_S.S.KOBE_MARU_(at)_EN_ROUTE_(SS)_(NYPL_Hades-274833-469108).jpg
+
+### Fine / Low Resolution Text
+
+Morphological Opening swallows fine structures, but unsharp masking helps preserve them.
 
 <table>
   <tr>
@@ -50,6 +57,21 @@ Image Source: https://commons.wikimedia.org/wiki/File:BREAKFAST_(held_by)_NIPPON
     <td><code>noteshrunk -w --unsharp_mask </code></td>
   </tr>
 </table>
+
+### Advanced Example
+
+<table>
+  <tr>
+    <td><img src="examples/example_3-orig.jpg" alt="Original Image" width="400" height="486"/></td>
+    <td><img src="examples/example_3-advanced.jpg" alt="Processed Image" width="400" height="486"/></td>
+  </tr>
+  <tr>
+    <td>Original Image</td>
+    <td><code>noteshrunk -w -s -tv 30 --denoise_opening -os 1.6 -n 6 -p 100 example_3-orig.jpg</code></td>
+  </tr>
+</table>
+
+Image Source: https://github.com/mzucker/noteshrink/blob/master/examples/notesA1.jpg
 
 ## Requirements
 
