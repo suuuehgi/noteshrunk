@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
-VERSION = '1.4.1'
+VERSION = '1.4.2'
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor

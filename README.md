@@ -22,8 +22,8 @@ This is a complete and improved rewrite of [mzucker's](https://github.com/mzucke
 
 <table>
   <tr>
-    <td width="50%"><img src="examples/example_1-orig.jpg" alt="Original Image" width="400" height="570"/></td>
-    <td width="50%"><img src="examples/example_1-ns.jpg" alt="Processed Image" width="400" height="570"/></td>
+    <td width="50%"><img src="https://github.com/suuuehgi/noteshrunk/blob/main/examples/example_1-orig.jpg?raw=True" alt="Original Image" width="400" height="570"/></td>
+    <td width="50%"><img src="https://github.com/suuuehgi/noteshrunk/blob/main/examples/example_1-ns.jpg?raw=True" alt="Processed Image" width="400" height="570"/></td>
   </tr>
   <tr>
     <td>Original Image</td>
@@ -39,19 +39,19 @@ Morphological Opening swallows fine structures, but unsharp masking helps preser
 
 <table>
   <tr>
-    <td><img src="examples/example_2-orig.jpg" alt="Original Image" width="970" height="217"/></td>
+    <td><img src="https://github.com/suuuehgi/noteshrunk/blob/main/examples/example_2-orig.jpg?raw=True" alt="Original Image" width="970" height="217"/></td>
   </tr>
   <tr>
     <td><code>Original Image (own)</code></td>
   </tr>
   <tr>
-    <td><img src="examples/example_2-opening.jpg" alt="Morphological Opening" width="970" height="217"/></td>
+    <td><img src="https://github.com/suuuehgi/noteshrunk/blob/main/examples/example_2-opening.jpg?raw=True" alt="Morphological Opening" width="970" height="217"/></td>
   </tr>
   <tr>
     <td><code>noteshrunk -w --denoise_opening -os .9</code></td>
   </tr>
   <tr>
-    <td><img src="examples/example_2-unsharp.jpg" alt="Unsharp Masking" width="970" height="217"/></td>
+    <td><img src="https://github.com/suuuehgi/noteshrunk/blob/main/examples/example_2-unsharp.jpg?raw=True" alt="Unsharp Masking" width="970" height="217"/></td>
   </tr>
   <tr>
     <td><code>noteshrunk -w --unsharp_mask </code></td>
@@ -62,8 +62,8 @@ Morphological Opening swallows fine structures, but unsharp masking helps preser
 
 <table>
   <tr>
-    <td width="50%"><img src="examples/example_3-orig.jpg" alt="Original Image" width="400" height="486"/></td>
-    <td width="50%"><img src="examples/example_3-advanced.jpg" alt="Processed Image" width="400" height="486"/></td>
+    <td width="50%"><img src="https://github.com/suuuehgi/noteshrunk/blob/main/examples/example_3-orig.jpg?raw=True" alt="Original Image" width="400" height="486"/></td>
+    <td width="50%"><img src="https://github.com/suuuehgi/noteshrunk/blob/main/examples/example_3-advanced.jpg?raw=True" alt="Processed Image" width="400" height="486"/></td>
   </tr>
   <tr>
     <td>Original Image</td>
@@ -71,7 +71,7 @@ Morphological Opening swallows fine structures, but unsharp masking helps preser
   </tr>
 </table>
 
-Image Source: https://github.com/mzucker/noteshrink/blob/master/examples/notesA1.jpg
+Image Source: https://github.com/mzucker/noteshrink/blob/master/https://github.com/suuuehgi/noteshrunk/blob/main/examples/notesA1.jpg
 
 ### Further Examples
 
