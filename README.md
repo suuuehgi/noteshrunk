@@ -73,6 +73,25 @@ Morphological Opening swallows fine structures, but unsharp masking helps preser
 
 Image Source: https://github.com/mzucker/noteshrink/blob/master/examples/notesA1.jpg
 
+### Further Examples
+
+1.  Compress a single image with default settings:
+
+    ```bash
+    noteshrunk input.png
+    ```
+
+2.  Compress multiple images with a white background and 16 colors:
+
+    ```bash
+    noteshrunk -w -n 16 image1.jpg image2.png
+    ```
+
+3.  Compress images using a local color palette and keep intermediate files while disabling multi-threading:
+    ```bash
+    noteshrunk -l -j 1 -k *.jpg
+    ```
+
 ## Requirements
 
 ### Python Packages
@@ -122,32 +141,14 @@ noteshrunk [-h] [-o OUTPUT] [-w] [-s] [-n N_COLORS] [-d DPI] [-q [1-100]] [-l]
 * `-ts`, `--threshold_saturation`: HSV saturation threshold (in percent) used for background detection (default: 15).
 * `-tv`, `--threshold_value`: HSV value threshold (in percent) used for background detection (default: 25).
 * `--denoise_median`: Apply median denoising on the output image with strength `-ms`.
-* `--denoise_opening`: Apply morphological opening on the background mask with strength `-os`.
-* `--unsharp_mask`: Apply unsharp masking on the final image with radius `-ur` and amount `-ua`.
 * `-ms`, `--median_strength`: Strength of median filtering (default: 3).
+* `--denoise_opening`: Apply morphological opening on the background mask with strength `-os`.
 * `-os`, `--opening_strength`: Strength of opening filtering / radius of the structuring element (disk, default: 3).
+* `--unsharp_mask`: Apply unsharp masking on the final image with radius `-ur` and amount `-ua`.
+* `-ur`, `-ua`: Radius and Amount used for unsharp masking.
 * `-k`, `--keep_intermediate`: Keep the intermediate single-page PDFs.
 * `-v`, `--verbose`: Verbose output.
 * `--version`: Show program version and exit.
-
-## Examples
-
-1.  Compress a single image with default settings:
-
-    ```bash
-    noteshrunk input.png
-    ```
-
-2.  Compress multiple images with a white background and 16 colors:
-
-    ```bash
-    noteshrunk -w -n 16 image1.jpg image2.png
-    ```
-
-3.  Compress images using a local color palette and keep intermediate files while disabling multi-threading:
-    ```bash
-    noteshrunk -l -j 1 -k *.jpg
-    ```
 
 ## Contributing
 
