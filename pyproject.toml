@@ -4,10 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "noteshrunk"
-version = "1.4.2"
+version = "1.5.0"
 description = "Document Color Palette Compression"
 readme = "README.md"
-requires-python = ">=3.6"
+requires-python = ">=3.9"
 license = {file = "LICENSE"}
 authors = [
     {name = "suuuehgi"}

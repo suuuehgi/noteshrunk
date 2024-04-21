@@ -1,20 +1,28 @@
 # noteshrunk - Document Color Palette Compression
 
 This Python script compresses images by reducing the number of colors and optimizing the image representation.
-It leverages KMeans clustering for color quantization and offers various options to customize the compression process.
+The idea of the program is to optimize scanned documents.
+It uses KMeans clustering to reduce the number of colors (higher contrast, smaller file size) and offers various options to customize the compression process.
 All supplied images are then saved as a multi-page PDF.
 
-The idea of the program is to optimize scanned documents.
+The color space of the input image (black-and-white / grayscale / color) is preserved as long as you use a local (per page) color palette.
+Otherwise, images with smaller color spaces will be adapted (black-and-white -> grayscale / color or grayscale -> color) to the color space of the image with the largest color space.
+For saving black-and-white images, I recommend having libtiff installed, otherwise it will fall back to using embedded jpeg.
+
 This is a complete and improved rewrite of [mzucker's](https://github.com/mzucker/noteshrink) noteshrink.
 
 ## Features
 
-* **Color Quantization:** Reduces the number of colors in the document using KMeans clustering, leading to smaller file sizes.
-* **Background Detection and Removal:** Identifies and removes the background color.
-* **Customizable Palette:** Allows you to specify the number of colors in the output palette and choose between a global palette for all pages or individual palettes for each page.
-* **Color Control:** Offers the option to maximize saturation in the output image as well as to remove the background (replace with white), enhancing visual clarity.
-* **Denoising Options:** Provides median filtering, morphological opening and unsharp masking to reduce noise and improve image quality.
-* **Parallel processing:** Utilizes multiple CPU cores for faster processing of multiple images.
+* **Color Quantization:** Reduces the number of colors in the document using KMeans clustering, leading to smaller file sizes and higher contrast.
+* **Background Detection and Removal:** Identifies and removes the background color (replace with white), enhancing visual clarity.
+* **Customizable Palette:** Allows you to specify the number of colors in the output palette, maximize saturation and choose between a global palette for all pages or individual palettes for each page.
+* **Denoising Options:** Provides [median filtering](https://en.wikipedia.org/wiki/Median_filter), [morphological opening](https://en.wikipedia.org/wiki/Opening_(morphology)) and [unsharp masking](https://en.wikipedia.org/wiki/Unsharp_masking) to reduce noise and improve image quality.
+* **Parallel processing:** Multi-threading for faster processing of multiple images.
+* **Low memory profile**: Trys to keep memory usage as small as possible. This is done by:
+  * Each page is converted separately
+  * The intermediate files are stored in the current working directory (so that you can choose between disk and RAM [e.g. `/tmp`])
+  * The library functions and programs used are specifically chosen to have the smallest overhead
+  * The input color space is preserved, if possible.
 
 ## Examples
 
@@ -107,6 +115,10 @@ Image Source: https://github.com/mzucker/noteshrink/blob/master/https://github.c
 ### Other
 
 - Ghostscript (executable `gs` in PATH - for PDF merging)
+
+### Optional Dependencies
+
+- `libtiff` for much smaller file sizes on black-and-white images.
 
 ## Installation
 

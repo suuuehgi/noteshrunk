@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5] - 2024-04-21
+
+### Fixed
+
+- Processing of grayscale and black-and-white images.
+
+### Changed
+
+- Changed from `print()` to `logging`.
+
 ## [1.4] - 2024-04-20
 
 ### Added
