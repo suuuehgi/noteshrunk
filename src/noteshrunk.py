@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
-VERSION = '1.5.0'
+VERSION = '1.5.1'
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -189,7 +189,7 @@ def sort_filenames(filenames):
     Returns:
         list of Path: The sorted list of filenames.
     """
-    file_paths = [Path(file) for file in filenames]
+    file_paths = [Path(file) for file in filenames if file.strip() != '']
     file_paths.sort(key=lambda path: natural_sort_key(path.name))
     return file_paths
 
@@ -827,6 +827,9 @@ def check_file_existence(files):
     # In case <files> is neither str, nor Path, nor list, the error is raised by pathlib.Path below
     if not isinstance(files, list):
         files = [files]
+
+    if len(files) == 0:
+        raise ValueError('No input images specified.')
 
     for file in files:
         path = Path(file)
