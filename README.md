@@ -72,7 +72,7 @@ Morphological Opening swallows fine structures, but unsharp masking helps preser
 
 <table>
   <tr>
-    <td width="50%">This page has a coverage of about 0.1 ‰ within the blue rectangle and would be removed, if `--skip_empty` were used. This is useful for duplex scanning. The margin width is 6% of the page width.</td>
+    <td width="50%" valign="top">This page has a coverage of about 0.1 ‰ within the blue rectangle and would be removed, if <code>--skip_empty</code> were used. This is useful for duplex scanning. The margin width is 6% of the page width.</td>
     <td width="50%"><img src="https://github.com/suuuehgi/noteshrunk/blob/main/examples/empty.jpg?raw=True" alt="Processed Image" width="400" height="570"/></td>
   </tr>
 </table>
