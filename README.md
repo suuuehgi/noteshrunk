@@ -73,7 +73,7 @@ Morphological Opening swallows fine structures, but unsharp masking helps preser
 <table>
   <tr>
     <td width="50%" valign="bottom">
-      This page has a coverage of about 0.1 ‰ within the blue rectangle and will be removed, if <code><nobr>--skip_empty</nobr></code> is used.</br>
+      This page has a coverage of about 0.1 ‰ within the blue rectangle and will be removed, if <code>-&#8288;-&#8288;skip_empty</code> is used.</br>
       This is useful for duplex scanning.</br>
       The margin width is 6% of the page width.
     </td>
