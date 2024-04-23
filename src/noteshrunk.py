@@ -398,14 +398,14 @@ def create_palette(image_s, args, idx=None, use_global_palette=False):
         sampled_pixels = np.vstack(sampled_pixels)
 
     elif not use_global_palette and isinstance(image_s, np.ndarray):
-        logging.info('Page {}: Determining color palette ...'.format(idx))
+        logging.info(f'Page {idx}: Determining color palette ...')
         sampled_pixels = sample_pixels(image_s, args.percentage)
 
     else:
         raise RuntimeError('Programming error. Map map map map.')
 
     background_color = get_background_color(sampled_pixels)
-    logging.info('Page {}:'.format(idx) if idx is not None else '' + 'Found background color {}'.format(background_color))
+    logging.info(f'Page {idx}:' if idx is not None else '' + f'Found background color {background_color}')
 
     if not background_color.dtype == bool:
         foreground_mask = get_foreground_mask(
@@ -416,7 +416,7 @@ def create_palette(image_s, args, idx=None, use_global_palette=False):
 
         foreground_pixels = sampled_pixels[foreground_mask]
 
-        logging.info('Page {}:'.format(idx) if idx is not None else '' + 'Clustering colors ...')
+        logging.info(f'Page {idx}:' if idx is not None else '' + 'Clustering colors ...')
         kmeans_colors, kmeans_model = perform_kmeans(
             foreground_pixels, args.n_colors - 1, args)
 
@@ -578,7 +578,7 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
 
     # morphological opening of the binary foreground mask to remove e.g. dust speckles
     if args.denoise_opening:
-        logging.info('Page {}: Applying opening ...'.format(idx))
+        logging.info(f'Page {idx}: Applying opening ...')
         # disk(<1) results in id-operation or zero-matrix and is hence useless
         kernel = disk(
             args.opening_strength) if args.opening_strength >= 1 else square(2)
@@ -588,13 +588,13 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
     if image.dtype != bool:
         labels = np.zeros(image.shape[0], dtype='uint8')
 
-        logging.info('Page {}: Applying color palette ...'.format(idx))
+        logging.info(f'Page {idx}: Applying color palette ...')
         # If the image is a solid color, the foreground has shape (0, 3)
         if image[foreground_mask].shape[0] != 0:
             labels[foreground_mask] = kmeans_model.predict(image[foreground_mask]) + 1
 
         if args.saturate:
-            logging.info('Page {}: Maximizing saturation ...'.format(idx))
+            logging.info(f'Page {idx}: Maximizing saturation ...')
             color_palette = color_palette.astype(float)
             pmin = color_palette.min()
             pmax = color_palette.max()
@@ -607,7 +607,7 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
     image[~foreground_mask] = color_palette[0]
 
     if args.unsharp_mask:
-        logging.info('Page {}: Applying unsharp mask filtering ...'.format(idx))
+        logging.info(f'Page {idx}: Applying unsharp mask filtering ...')
 
         if len(shape) == 3:
             image = np.array( Image.fromarray(image.reshape(shape), mode='RGB').convert('HSV') )
@@ -630,7 +630,7 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
 
 
     if args.denoise_median:
-        logging.info('Page {}: Applying median filtering ...'.format(idx))
+        logging.info(f'Page {idx}: Applying median filtering ...')
         # Median filtering is per color channel. In RGB space this would lead
         # to color deviations.
         if len(shape) == 3:
@@ -756,7 +756,7 @@ def save_as_pdf(image, filename, args, idx):
         None
     """
 
-    logging.info('Page {}: Saving page as {} ...'.format(idx, filename))
+    logging.info(f'Page {idx}: Saving page as {filename} ...')
     pdf = Image.fromarray(image)
     pdf.save(filename, 'PDF',
              dpi=(args.dpi, args.dpi),
@@ -780,7 +780,7 @@ def merge_pdfs(filename_paths, args):
     if not args.overwrite:
         filename = check_file_and_prompt(filename)
 
-    logging.info('Merging single pages to {} ...'.format(filename))
+    logging.info(f'Merging single pages to {filename} ...')
     try:
         command = ['gs',
                    '-dNOPAUSE',
@@ -795,7 +795,7 @@ def merge_pdfs(filename_paths, args):
         logging.critical("Error: {}".format( e.stderr.decode('utf-8') if e.stderr is not None else None) )
         logging.critical("Stdout was: {}".format( e.stdout.decode('utf-8') if e.stdout is not None else None) )
 
-    logging.info('Output written to {}'.format(args.output))
+    logging.info(f'Output written to {args.output}')
 
 
 def process_image(file, output_filename, idx, args, global_palette=None):
@@ -823,7 +823,7 @@ def process_image(file, output_filename, idx, args, global_palette=None):
 
     processed_images = []
 
-    logging.info('Processing image {}'.format(idx))
+    logging.info(f'Processing image {idx}')
 
     if args.local_palette:
         color_palette, kmeans_model = create_palette(image, args, idx + 1)
@@ -897,7 +897,7 @@ def main():
     # This way the intermediate files are automatically deleted upon program exit.
     # Each image is converted to a single-page PDF before concatenation
     # afterwards, which reduces the memory footprint.
-    with tempfile.TemporaryDirectory(dir=os.getcwd(), prefix='tmp_pdfs-', delete=(not args.keep_intermediate)) as temp_dir:
+    with tempfile.TemporaryDirectory(dir=os.getcwd(), prefix='tmp_pdfs-', delete=(not args.keep_intermediate)) as tmp_dir:
 
         intermediate_pdf_paths = []
 
@@ -910,7 +910,7 @@ def main():
             remove = []
             for idx, file in enumerate(file_paths):
 
-                output_filename = args.output.parent / temp_dir / Path(file.name).with_suffix('.pdf')
+                output_filename = args.output.parent / tmp_dir / Path(file.name).with_suffix('.pdf')
 
                 # E.g. the same input file multiple times
                 if output_filename in intermediate_pdf_paths or output_filename.exists():
@@ -939,7 +939,7 @@ def main():
 
 
         if args.keep_intermediate:
-            logging.info('Skipping the deletion of intermediate PDFs (folder {}).'.format(temp_dir))
+            logging.info('Skipping the deletion of intermediate PDFs (folder {tmp_dir}).')
 
         merge_pdfs(intermediate_pdf_paths, args)
 
