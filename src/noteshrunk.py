@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
-VERSION = '1.5.1'
+VERSION = '1.6.0'
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -90,6 +90,18 @@ def parse_args():
         type=float,
         default=100,
         help="Percentage of pixels to sample from each image.")
+    parser.add_argument(
+        '-e',
+        '--skip_empty',
+        action='store_true',
+        default=False,
+        help='Autoremove blank pages. Pages with a coverage (after removing about 6 % at the margin) below <-te> will be removed.')
+    parser.add_argument(
+        '-te',
+        '--threshold_empty',
+        type=lambda x: np.clip(x, a_min=0, a_max=None),
+        default=2,
+        help='Coverage in parts per thousand / permille below which a page should be discarded.')
     parser.add_argument(
         "-j",
         "--jobs",
@@ -554,6 +566,16 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
             threshold_saturation=args.threshold_saturation,
             threshold_value=args.threshold_value)
 
+    if args.skip_empty:
+        Y, X = shape
+        # subtract a small safety margin
+        delta = int(round(X * .06, 0))
+        coverage = 1000 * foreground_mask.reshape(shape)[delta:Y-delta, delta:X-delta].mean()
+
+        if coverage <= args.threshold_empty:
+            logging.info('Removing page {} with coverage of {} (<= {}) ‰.'.format(idx, round(coverage, 1), args.threshold_empty))
+            return None
+
     # morphological opening of the binary foreground mask to remove e.g. dust speckles
     if args.denoise_opening:
         logging.info('Page {}: Applying opening ...'.format(idx))
@@ -789,13 +811,13 @@ def process_image(file, output_filename, idx, args, global_palette=None):
     Args:
         file (pathlib.Path): The path to the input image file.
         output_filename (pathlib.Path): The path to the output PDF file.
-        idx (int): The index of the image in the list of files being processed. Just used for the -v flag.
+        idx (int): The index of the image in the list of files being processed.
         args (argparse.Namespace): The command line arguments.
         global_palette (tuple, optional): A tuple containing the color palette and the fitted KMeans model,
                                           if using a global palette. Defaults to None.
 
     Returns:
-        None
+        tuple (idx, bool): idx: Same as input, bool: True: Success, False: Page is to be removed.
     """
     image = io.imread(file)
 
@@ -810,7 +832,11 @@ def process_image(file, output_filename, idx, args, global_palette=None):
 
     image = apply_color_palette(image, color_palette, kmeans_model, args, idx + 1)
 
-    save_as_pdf(image, output_filename, args, idx + 1)
+    if image is None:
+        return (idx, False)
+    else:
+        save_as_pdf(image, output_filename, args, idx + 1)
+        return (idx, True)
 
 
 def check_file_existence(files):
@@ -881,6 +907,7 @@ def main():
         with ThreadPoolExecutor(max_workers=args.jobs) as executor:
 
             threads = []
+            remove = []
             for idx, file in enumerate(file_paths):
 
                 output_filename = args.output.parent / temp_dir / Path(file.name).with_suffix('.pdf')
@@ -897,7 +924,15 @@ def main():
             executor.shutdown(wait=True)
             try:
                 for f in threads:
-                    f.result()  # This will raise a ValueError in case the thread crashed
+                    idx, result = f.result()  # This will raise a ValueError in case the thread crashed
+
+                    # Page is to be removed
+                    if result is False:
+                        remove.append(idx)
+
+                for idx in sorted(remove, reverse=True):
+                    intermediate_pdf_paths.pop(idx)
+
             except ValueError as e:
                 logging.critical(f"Caught an error: {e}")
                 sys.exit(1)

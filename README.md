@@ -15,6 +15,7 @@ This is a complete and improved rewrite of [mzucker's](https://github.com/mzucke
 
 * **Color Quantization:** Reduces the number of colors in the document using KMeans clustering, leading to smaller file sizes and higher contrast.
 * **Background Detection and Removal:** Identifies and removes the background color (replace with white), enhancing visual clarity.
+* **Autoremove empty pages**: Identifies and removes blank pages.
 * **Customizable Palette:** Allows you to specify the number of colors in the output palette, maximize saturation and choose between a global palette for all pages or individual palettes for each page.
 * **Denoising Options:** Provides [median filtering](https://en.wikipedia.org/wiki/Median_filter), [morphological opening](https://en.wikipedia.org/wiki/Opening_(morphology)) and [unsharp masking](https://en.wikipedia.org/wiki/Unsharp_masking) to reduce noise and improve image quality.
 * **Parallel processing:** Multi-threading for faster processing of multiple images.
@@ -65,6 +66,17 @@ Morphological Opening swallows fine structures, but unsharp masking helps preser
     <td><code>noteshrunk -w --unsharp_mask </code></td>
   </tr>
 </table>
+
+### Empty Pages
+
+
+<table>
+  <tr>
+    <td width="50%">This page has a coverage of about 0.1 ‰ within the blue rectangle and would be removed, if `--skip_empty` were used. This is useful for duplex scanning. The margin width is 6% of the page width.</td>
+    <td width="50%"><img src="https://github.com/suuuehgi/noteshrunk/blob/main/examples/empty.jpg?raw=True" alt="Processed Image" width="400" height="570"/></td>
+  </tr>
+</table>
+
 
 ### Advanced Example
 
@@ -130,7 +142,7 @@ pipx install noteshrunk
 
 ```
 noteshrunk [-h] [-o OUTPUT] [-w] [-s] [-n N_COLORS] [-d DPI] [-q [1-100]] [-l]
-           [-p PERCENTAGE] [-j JOBS] [-y]
+           [-p PERCENTAGE] [-e] [-te THRESHOLD_EMPTY] [-j JOBS] [-y]
            [-ts THRESHOLD_SATURATION] [-tv THRESHOLD_VALUE]
            [--denoise_median] [--denoise_opening] [--unsharp_mask]
            [-ms MEDIAN_STRENGTH] [-cs CLOSING_STRENGTH] [-ua UNSHARP_AMOUNT] [-ur UNSHARP_RADIUS]
@@ -148,6 +160,8 @@ noteshrunk [-h] [-o OUTPUT] [-w] [-s] [-n N_COLORS] [-d DPI] [-q [1-100]] [-l]
 * `-q`, `--quality`: JPEG quality of the images embedded in the PDF (1-100, default: 75).
 * `-l`, `--local_palette`: Create an individual color palette for each image (by sampling a -p percentage of the pixels of that image) instead of a global palette (by sampling a -p percentage of the pixels of each input image).
 * `-p`, `--percentage`: Percentage of pixels to sample from each input image for color palette creation (default: 10).
+* `-e`, `--skip_empty`: Pages with a coverage (after removing about 6 % at the margin) below `-te` will be removed.
+* `-te`, `--threshold_empty`: Coverage in parts per thousand / permille below which a page should be discarded.
 * `-j`, `--jobs`: Number of threads to use for multi-threading (default: number of CPU cores).
 * `-y`, `--overwrite`: Overwrite existing files without asking.
 * `-ts`, `--threshold_saturation`: HSV saturation threshold (in percent) used for background detection (default: 15).

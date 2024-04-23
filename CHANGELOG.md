@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6] - 2024-04-23
+
+### Added
+
+- `--skip_empty`, `--threshold_empty`
+
 ## [1.5] - 2024-04-21
 
 ### Fixed
