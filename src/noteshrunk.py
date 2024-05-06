@@ -552,8 +552,10 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
     assert len(shape) in [2, 3]
 
     if len(shape) == 3:
+        # RGB
         image = image.reshape((-1, 3))
     else:
+        # Gray / BW
         image = image.reshape((-1, 1))
 
     if image.dtype == bool:
@@ -580,10 +582,9 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
     if args.denoise_opening:
         logging.info(f'Page {idx}: Applying opening ...')
         # disk(<1) results in id-operation or zero-matrix and is hence useless
-        kernel = disk(
-            args.opening_strength) if args.opening_strength >= 1 else square(2)
+        kernel = disk(args.opening_strength) if args.opening_strength >= 1 else square(2)
         foreground_mask = binary_opening(
-            foreground_mask.reshape(shape[:-1]), kernel).flatten()
+            foreground_mask.reshape(shape if len(shape) == 2 else shape[:-1]), kernel).flatten()
 
     if image.dtype != bool:
         labels = np.zeros(image.shape[0], dtype='uint8')
