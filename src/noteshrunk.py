@@ -97,6 +97,12 @@ def parse_args():
         default=False,
         help='Autoremove blank pages. Pages with a coverage (after removing about 6 % at the margin) below <-te> will be removed.')
     parser.add_argument(
+        '-b',
+        '--binarize',
+        action='store_true',
+        default=False,
+        help='Trivial binarization by thresholing with <-tb>')
+    parser.add_argument(
         '-te',
         '--threshold_empty',
         type=lambda x: np.clip(x, a_min=0, a_max=None),
@@ -114,6 +120,14 @@ def parse_args():
         action='store_true',
         default=False,
         help='Overwrite existing files without asking.')
+    parser.add_argument(
+        "-tb",
+        "--threshold_binarize",
+        type=int,
+        default=80,
+        choices=range(0, 101),  # Allow values between 0 and 100
+        metavar="[1-100]",
+        help="Gray value in percent for a pixel to become white.")
     parser.add_argument(
         "-ts",
         "--threshold_saturation",
@@ -577,6 +591,8 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
         if coverage <= args.threshold_empty:
             logging.info('Removing page {} with coverage of {} (<= {}) ‰.'.format(idx, round(coverage, 1), args.threshold_empty))
             return None
+        else:
+            logging.debug('Page {} has coverage of {} (> {}) ‰.'.format(idx, round(coverage, 1), args.threshold_empty))
 
     # morphological opening of the binary foreground mask to remove e.g. dust speckles
     if args.denoise_opening:
@@ -821,6 +837,20 @@ def process_image(file, output_filename, idx, args, global_palette=None):
         tuple (idx, bool): idx: Same as input, bool: True: Success, False: Page is to be removed.
     """
     image = io.imread(file)
+
+    if args.binarize:
+        logging.info(f'Page {idx}: Applying binarization using a threshold of {args.threshold_binarize} % ...')
+        if len(image.shape) == 2:
+            # Already binary
+            if image.dtype == 'bool':
+                pass
+            # Grayscale
+            else:
+                image = image > 255 * args.threshold_binarize / 100
+
+        # RGB
+        else:
+            image = np.array(Image.fromarray(image).convert('L')) > 255 * args.threshold_binarize / 100
 
     processed_images = []
 
