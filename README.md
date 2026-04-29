@@ -1,4 +1,4 @@
-i# noteshrunk - Document Color Palette Compression
+# noteshrunk - Document Color Palette Compression
 
 This Python script compresses images by reducing the number of colors and optimizing the image representation.
 The idea of the program is to optimize scanned documents.
