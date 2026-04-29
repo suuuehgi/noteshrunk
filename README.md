@@ -1,4 +1,4 @@
-# noteshrunk - Document Color Palette Compression
+i# noteshrunk - Document Color Palette Compression
 
 This Python script compresses images by reducing the number of colors and optimizing the image representation.
 The idea of the program is to optimize scanned documents.
@@ -16,8 +16,9 @@ This is a complete and improved rewrite of [mzucker's](https://github.com/mzucke
 * **Color Quantization:** Reduces the number of colors in the document using KMeans clustering, leading to smaller file sizes and higher contrast.
 * **Background Detection and Removal:** Identifies and removes the background color (replace with white), enhancing visual clarity.
 * **Autoremove empty pages**: Identifies and removes blank pages.
-* **Customizable Palette:** Allows you to specify the number of colors in the output palette, maximize saturation and choose between a global palette for all pages or individual palettes for each page.
-* **Denoising Options:** Provides [median filtering](https://en.wikipedia.org/wiki/Median_filter), [morphological opening](https://en.wikipedia.org/wiki/Opening_(morphology)) and [unsharp masking](https://en.wikipedia.org/wiki/Unsharp_masking) to reduce noise and improve image quality.
+* **Customizable Palette:** Allows you to specify the number of colors in the output palette, provide a custom hex color palette, maximize saturation, normalize contrast, and choose between a global palette for all pages or individual palettes for each page.
+* **Binarization:** Trivial binarization by thresholding.
+* **Denoising Options:** Provides [median filtering](https://en.wikipedia.org/wiki/Median_filter), [morphological opening](https://en.wikipedia.org/wiki/Opening_(morphology)), [morphological closing](https://en.wikipedia.org/wiki/Closing_(morphology)) and [unsharp masking](https://en.wikipedia.org/wiki/Unsharp_masking) to reduce noise and improve image quality.
 * **Parallel processing:** Multi-threading for faster processing of multiple images.
 * **Low memory profile**: Trys to keep memory usage as small as possible. This is done by:
   * Each page is converted separately
@@ -81,7 +82,6 @@ Morphological Opening swallows fine structures, but unsharp masking helps preser
   </tr>
 </table>
 
-
 ### Advanced Example
 
 <table>
@@ -91,7 +91,7 @@ Morphological Opening swallows fine structures, but unsharp masking helps preser
   </tr>
   <tr>
     <td>Original Image</td>
-    <td><code>noteshrunk -w -s -tv 30 --denoise_opening -os 1.6 -n 6 -p 100 example_3-orig.jpg</code></td>
+    <td><code>noteshrunk -w -s -tv 30 --denoise_opening -os 1.6 -c 6 --percentage 100 example_3-orig.jpg</code></td>
   </tr>
 </table>
 
@@ -108,7 +108,7 @@ Image Source: https://github.com/mzucker/noteshrink/blob/master/https://github.c
 2.  Compress multiple images with a white background and 16 colors:
 
     ```bash
-    noteshrunk -w -n 16 image1.jpg image2.png
+    noteshrunk -w -c 16 image1.jpg image2.png
     ```
 
 3.  Compress images using a local color palette and keep intermediate files while disabling multi-threading:
@@ -145,38 +145,48 @@ pipx install noteshrunk
 ## Usage
 
 ```
-noteshrunk [-h] [-o OUTPUT] [-w] [-s] [-n N_COLORS] [-d DPI] [-q [1-100]] [-l]
-           [-p PERCENTAGE] [-e] [-te THRESHOLD_EMPTY] [-j JOBS] [-y]
-           [-ts THRESHOLD_SATURATION] [-tv THRESHOLD_VALUE]
-           [--denoise_median] [--denoise_opening] [--unsharp_mask]
-           [-ms MEDIAN_STRENGTH] [-cs CLOSING_STRENGTH] [-ua UNSHARP_AMOUNT] [-ur UNSHARP_RADIUS]
-           [-k] [-v] [--version] files [files ...]
+noteshrunk [-h] [-o OUTPUT] [-b] [-w] [-n] [-s] [-c N_COLORS] [-d DPI]
+[-q [1-100]] [-l] [-p PALETTE] [--percentage PERCENTAGE] [-e]
+[--binarize] [-te THRESHOLD_EMPTY] [-j JOBS] [-y] [-tb [1-100]]
+[-ts [1-100]] [-tv [1-100]] [--denoise_median] [--denoise_opening]
+[--denoise_closing] [--unsharp_mask] [-ms MEDIAN_STRENGTH]
+[-cs CLOSING_STRENGTH] [-os OPENING_STRENGTH] [-ua UNSHARP_AMOUNT]
+[-ur UNSHARP_RADIUS] [-k] [-v] [--version] files [files ...]
 ```
+
 
 ### Arguments
 
 * `files`: A list of paths to the input image files.
 * `-o`, `--output`: Path to the output PDF file (default: `output.pdf`).
+* `-b`, `--black`: Replace the color closest to black with black.
 * `-w`, `--white_background`: Use white background instead of dominant color.
+* `-n`, `--normalize`: Normalize the output image / perform a global contrast stretch.
 * `-s`, `--saturate`: Maximize saturation in the output image.
-* `-n`, `--n_colors`: Number of colors in the palette (default: 8).
-* `-d`, `--dpi`: DPI value of the input images (default: 300).
+* `-c`, `--n_colors`: Number of colors in the palette (default: 8).
+* `-d`, `--dpi`: DPI value of the input image/-s (default: 300).
 * `-q`, `--quality`: JPEG quality of the images embedded in the PDF (1-100, default: 75).
-* `-l`, `--local_palette`: Create an individual color palette for each image (by sampling a -p percentage of the pixels of that image) instead of a global palette (by sampling a -p percentage of the pixels of each input image).
-* `-p`, `--percentage`: Percentage of pixels to sample from each input image for color palette creation (default: 10).
-* `-e`, `--skip_empty`: Pages with a coverage (after removing about 6 % at the margin) below `-te` will be removed.
-* `-te`, `--threshold_empty`: Coverage in parts per thousand / permille below which a page should be discarded.
-* `-j`, `--jobs`: Number of threads to use for multi-threading (default: number of CPU cores).
+* `-l`, `--local_palette`: Create an individual color palette for each image (by sampling a percentage of the pixels of that image) instead of a global palette.
+* `-p`, `--palette`: Custom color palette as comma-separated hex codes (e.g., "#FFFFFF,#FF0000,#000000"). The first color is used as the background.
+* `--percentage`: Percentage of pixels to sample from each image. (default: 100).
+* `-e`, `--skip_empty`: Autoremove blank pages. Pages with a coverage (after removing about 6 percent at the margin) below `<-te>` will be removed.
+* `--binarize`: Trivial binarization by thresholing with `<-tb>`.
+* `-te`, `--threshold_empty`: Coverage in parts per thousand / permille below which a page should be discarded (default: 2).
+* `-j`, `--jobs`: Number of processes to use (default: number of CPU cores).
 * `-y`, `--overwrite`: Overwrite existing files without asking.
-* `-ts`, `--threshold_saturation`: HSV saturation threshold (in percent) used for background detection (default: 15).
-* `-tv`, `--threshold_value`: HSV value threshold (in percent) used for background detection (default: 25).
-* `--denoise_median`: Apply median denoising on the output image with strength `-ms`.
+* `-tb`, `--threshold_binarize`: Gray value in percent for a pixel to become white (default: 60).
+* `-ts`, `--threshold_saturation`: HSV saturation threshold (in percent) used for the background detection (default: 15).
+* `-tv`, `--threshold_value`: HSV value threshold (in percent) used for the background detection (default: 20).
+* `--denoise_median`: Apply median denoising.
+* `--denoise_opening`: Apply morphological opening on the (binary) background mask.
+* `--denoise_closing`: Apply morphological closing on the (binary) background mask.
+* `--unsharp_mask`: Apply unsharp masking with radius `<-ur>` and amount `<-ua>` to the V-channel of the output image in HSV representation.
 * `-ms`, `--median_strength`: Strength of median filtering (default: 3).
-* `--denoise_opening`: Apply morphological opening on the background mask with strength `-os`.
-* `-os`, `--opening_strength`: Strength of opening filtering / radius of the structuring element (disk, default: 3).
-* `--unsharp_mask`: Apply unsharp masking on the final image with radius `-ur` and amount `-ua`.
-* `-ur`, `-ua`: Radius and Amount used for unsharp masking.
-* `-k`, `--keep_intermediate`: Keep the intermediate single-page PDFs.
+* `-cs`, `--closing_strength`: Strength of closing filtering / radius of the structuring element (disk) (default: 3).
+* `-os`, `--opening_strength`: Strength of opening filtering / radius of the structuring element (disk) (default: 3).
+* `-ua`, `--unsharp_amount`: The amount used for unsharp masking (default: 2).
+* `-ur`, `--unsharp_radius`: The radius used for unsharp masking (default: 5).
+* `-k`, `--keep_intermediate`: Do not delete intermediate (single-page) PDFs afterwards.
 * `-v`, `--verbose`: Verbose output.
 * `--version`: Show program version and exit.
 
