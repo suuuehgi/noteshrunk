@@ -116,6 +116,13 @@ Image Source: https://github.com/mzucker/noteshrink/blob/master/https://github.c
     noteshrunk -l -j 1 -k *.jpg
     ```
 
+4.  You can even use it for videos:
+    ```bash
+    mkdir frames out && ffmpeg -i <input_video> [-vf fps=10] frames/out%04d.png
+    noteshrunk -w -n -o out/out.png frames/*
+    ffmpeg -framerate <fps> -i out/out_%04d.png <output_video>
+    ```
+
 ## Requirements
 
 ### Python Packages
