@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
-VERSION = '1.7.0'
+VERSION = '1.7.2'
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -36,6 +36,8 @@ def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         description='Compress scanned documents')
+
+    palette_group = parser.add_mutually_exclusive_group()
 
     parser.add_argument(
         'files',
@@ -91,13 +93,13 @@ def parse_args():
         choices=range(1, 101),  # Allow values between 1 and 100 (inclusive)
         metavar="[1-100]",
         help='JPEG quality of the images embedded in the PDF')
-    parser.add_argument(
+    palette_group.add_argument(
         '-l',
         '--local_palette',
         action='store_true',
         default=False,
-        help='Create an individual color palette for each image (by sampling a -p percentage of the pixels of that image) instead of a global palette (by sampling a -p percentage of the pixels of each input image).')
-    parser.add_argument(
+        help='Create an individual color palette for each image (by sampling a --percentage <percentage> of the pixels of that image) instead of a global palette (by sampling a --percentage <percentage> of the pixels of _each_ input image).')
+    palette_group.add_argument(
         '-p',
         '--palette',
         type=str,
@@ -129,7 +131,7 @@ def parse_args():
         "-j",
         "--jobs",
         type=int,
-        default=os.cpu_count(),
+        default=os.cpu_count() or 1, # os.cpu_count() might return None
         help="Number of processes to use (default: number of CPU cores)")
     parser.add_argument(
         '-y',
@@ -1061,12 +1063,13 @@ def main():
         logging.critical(f"Unsupported output file extension '{args.output.suffix}'. Please use one of: {', '.join(valid_extensions)}")
         sys.exit(1)
 
-    check_command_exists('gs')
-
     file_paths = sort_filenames(args.files)
     check_file_existence(file_paths)
 
     outfile_is_pdf = args.output.suffix.lower() == '.pdf'
+
+    if outfile_is_pdf:
+        check_command_exists('gs')
 
     # Create a temporary folder at the output file location for storing intermediate PDFs.
     # This way the intermediate files are automatically deleted upon program exit.
