@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
-VERSION = '1.6.0'
+VERSION = '1.7.0'
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -20,7 +20,7 @@ import numpy as np
 from PIL import Image
 from scipy.ndimage import median_filter
 from skimage import io
-from skimage.color import rgb2lab, deltaE_ciede2000
+from skimage.color import rgb2lab, deltaE_ciede2000, rgb2hsv, hsv2rgb
 from sklearn.cluster import KMeans
 from skimage.filters import unsharp_mask
 from skimage.morphology import binary_opening, binary_closing, square, disk
@@ -60,13 +60,19 @@ def parse_args():
         default=False,
         help='Use white background instead of dominant color.')
     parser.add_argument(
+        '-n',
+        '--normalize',
+        action='store_true',
+        default=False,
+        help='Normalize the output image / perform a global contrast stretch.')
+    parser.add_argument(
         '-s',
         '--saturate',
         action='store_true',
         default=False,
         help='Maximize saturation in the output image.')
     parser.add_argument(
-        '-n',
+        '-c',
         '--n_colors',
         type=int,
         default=8,
@@ -92,7 +98,12 @@ def parse_args():
         default=False,
         help='Create an individual color palette for each image (by sampling a -p percentage of the pixels of that image) instead of a global palette (by sampling a -p percentage of the pixels of each input image).')
     parser.add_argument(
-        "-p",
+        '-p',
+        '--palette',
+        type=str,
+        default=None,
+        help='Custom color palette as comma-separated hex codes (e.g., "#FFFFFF,#FF0000,#000000"). The first color is used as the background.')
+    parser.add_argument(
         "--percentage",
         type=float,
         default=100,
@@ -643,11 +654,26 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
 
         if args.saturate:
             logging.info(f'Page {idx}: Maximizing saturation ...')
+
+            # convert to hsv with background color excluded
+            palette_hsv = rgb2hsv(color_palette[1:].reshape(1, -1, 3) / 255.0).reshape(-1, 3)
+            # S = 1, only where S > 0 to avoid turning whites/blacks/grays into red
+            palette_hsv[palette_hsv[:, 1] > 0.05, 1] = 1.0
+            color_palette[1:] = (hsv2rgb(palette_hsv.reshape(1, -1, 3)).reshape(-1, 3) * 255).round(0).astype('uint8')
+
+            logging.info(f'Color palette now: {color_palette}')
+
+        if args.normalize:
+            logging.info(f'Page {idx}: Performing normalization/contrast stretching ...')
+
             color_palette = color_palette.astype(float)
+            
             pmin = color_palette.min()
             pmax = color_palette.max()
+            
             color_palette = 255 * (color_palette - pmin) / (pmax - pmin)
             color_palette = color_palette.round(0).astype('uint8')
+            
             logging.info(f'Color palette now: {color_palette}')
 
         if args.black:
@@ -667,14 +693,11 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
         logging.info(f'Page {idx}: Applying unsharp mask filtering ...')
 
         if len(shape) == 3:
-            image = np.array( Image.fromarray(image.reshape(shape), mode='RGB').convert('HSV') )
-
-            # unsharp_mask returns in range [0, 1] and preserve_range seems broken
-            tmp_max = np.max(image[:,:,2])
-            image[:,:,2] = (unsharp_mask(image[:,:,2],
-                                        radius=args.unsharp_radius,
-                                        amount=args.unsharp_amount) * tmp_max).round(0).astype('uint8')
-            image = np.array( Image.fromarray(image, mode='HSV').convert('RGB') ).reshape((-1,3))
+            image = rgb2hsv(image.reshape(shape))  # float [0, 1]
+            image[:,:,2] = unsharp_mask(image[:,:,2],
+                                    radius=args.unsharp_radius,
+                                    amount=args.unsharp_amount)
+            image = (hsv2rgb(image) * 255).round(0).astype('uint8').reshape((-1, 3))
 
         elif len(shape) == 2 and image.dtype != bool:
             tmp_max = np.max(image)
@@ -691,11 +714,9 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
         # Median filtering is per color channel. In RGB space this would lead
         # to color deviations.
         if len(shape) == 3:
-            image = Image.fromarray(image.reshape(shape), mode='RGB').convert('HSV')
-            image = median_filter(
-                image,
-                size=(args.median_strength, args.median_strength, 1))
-            image = Image.fromarray(image, mode='HSV').convert('RGB')
+            image = rgb2hsv(image.reshape(shape))  # float [0, 1]
+            image = median_filter(image, size=(args.median_strength, args.median_strength, 1))
+            image = (hsv2rgb(image) * 255).round(0).astype('uint8')
 
         else:
             image = median_filter(
@@ -950,6 +971,65 @@ def check_command_exists(command_name: str):
     if not (shutil.which(command_name) is not None):
         raise RuntimeError('"{}" not found in PATH! Is it installed?'.format(command_name))
 
+def parse_hex_palette(hex_str):
+    """
+    Parses a comma-separated string of hex color codes into a NumPy array.
+    
+    Supports both 3-digit (e.g., '#F00') and 6-digit (e.g., '#FF0000') hex formats.
+
+    Args:
+        hex_str (str): Comma-separated hex color codes.
+
+    Returns:
+        np.array: An array of RGB tuples of shape (N, 3) with dtype uint8.
+
+    Raises:
+        ValueError: If a provided hex code is invalid in length or characters.
+    """
+    colors = []
+    for h in hex_str.split(','):
+        h = h.strip().lstrip('#')
+        
+        # Expand 3-digit hex codes (e.g., 'F00' -> 'FF0000')
+        if len(h) == 3:
+            h = ''.join(c * 2 for c in h)
+            
+        # Validate format: exactly 6 characters and valid hex digits
+        if len(h) != 6 or not all(c in string.hexdigits for c in h):
+            raise ValueError(f"Invalid hex color: '{h}'. Please use 3-digit or 6-digit hex codes.")
+            
+        colors.append(tuple(int(h[i:i+2], 16) for i in (0, 2, 4)))
+        
+    return np.array(colors, dtype='uint8')
+
+class CustomPaletteModel:
+    """
+    A duck-typed mock of the sklearn KMeans model for applying a custom color palette.
+
+    The script's apply_color_palette() function strongly couples color assignment with a kmeans_model.predict() method.
+    Injecting a custom class that calculates Euclidean distances mimics this behavior, preventing me from having to rewrite
+    the core pixel assignment logic.
+    """
+    def __init__(self, foreground_colors):
+        """
+        Args:
+            foreground_colors (np.array): Array of RGB colors to be used as cluster centers.
+        """
+        self.foreground_colors = foreground_colors.astype(float)
+        
+    def predict(self, pixels):
+        """
+        Assigns each pixel to the nearest foreground color using Euclidean distance.
+
+        Args:
+            pixels (np.array): The image pixels to classify, shape (N, 3).
+
+        Returns:
+            np.array: An array of indices representing the closest color for each pixel.
+        """
+        # Calculate Euclidean distance between pixels and foreground colors
+        distances = np.linalg.norm(pixels[:, np.newaxis] - self.foreground_colors, axis=2)
+        return np.argmin(distances, axis=1)
 
 def main():
     """
@@ -960,9 +1040,9 @@ def main():
     if args.verbose == 1:
         logging.basicConfig(encoding='utf-8', format="%(lineno)d-%(levelname)s:%(message)s", level=logging.INFO)
     elif args.verbose == 2:
-        logging.basicConfig(encoding='utf-8', format="%(lineno)d-%(levelname)s:%(message)s", level=logging.WARNING)
+        logging.basicConfig(encoding='utf-8', format="%(lineno)d-%(levelname)s:%(message)s", level=logging.DEBUG)
     else:
-        logging.basicConfig(encoding='utf-8', format="%(levelname)s:%(message)s", level=logging.DEBUG)
+        logging.basicConfig(encoding='utf-8', format="%(levelname)s:%(message)s", level=logging.WARNING)
 
     check_command_exists('gs')
 
@@ -977,7 +1057,11 @@ def main():
 
         intermediate_pdf_paths = []
 
-        if not args.local_palette:
+        if args.palette:
+            color_palette = parse_hex_palette(args.palette)
+            kmeans_model = CustomPaletteModel(color_palette[1:])
+
+        elif not args.local_palette:
             color_palette, kmeans_model = create_palette(file_paths, args, use_global_palette=True)
 
         with ThreadPoolExecutor(max_workers=args.jobs) as executor:
