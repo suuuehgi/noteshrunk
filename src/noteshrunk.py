@@ -23,7 +23,7 @@ from skimage import io
 from skimage.color import rgb2lab, deltaE_ciede2000, rgb2hsv, hsv2rgb
 from sklearn.cluster import KMeans
 from skimage.filters import unsharp_mask
-from skimage.morphology import binary_opening, binary_closing, square, disk
+from skimage.morphology import binary_opening, binary_closing, footprint_rectangle, disk
 
 
 def parse_args():
@@ -628,7 +628,7 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
     if args.denoise_opening:
         logging.info(f'Page {idx}: Applying opening ...')
         # disk(<1) results in id-operation or zero-matrix and is hence useless
-        kernel = disk(args.opening_strength) if args.opening_strength >= 1 else square(2)
+        kernel = disk(args.opening_strength) if args.opening_strength >= 1 else footprint_rectangle((2,2))
         foreground_mask = binary_opening(
             foreground_mask.reshape(shape if len(shape) == 2 else shape[:-1]), kernel).flatten()
 
@@ -636,7 +636,7 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
     if args.denoise_closing:
         logging.info(f'Page {idx}: Applying closing ...')
         # disk(<1) results in id-operation or zero-matrix and is hence useless
-        kernel = disk(args.closing_strength) if args.closing_strength >= 1 else square(2)
+        kernel = disk(args.closing_strength) if args.closing_strength >= 1 else footprint_rectangle((2,2))
         foreground_mask = binary_closing(
             foreground_mask.reshape(shape if len(shape) == 2 else shape[:-1]), kernel).flatten()
 
@@ -986,6 +986,7 @@ def parse_hex_palette(hex_str):
     Raises:
         ValueError: If a provided hex code is invalid in length or characters.
     """
+
     colors = []
     for h in hex_str.split(','):
         h = h.strip().lstrip('#')
@@ -999,7 +1000,10 @@ def parse_hex_palette(hex_str):
             raise ValueError(f"Invalid hex color: '{h}'. Please use 3-digit or 6-digit hex codes.")
             
         colors.append(tuple(int(h[i:i+2], 16) for i in (0, 2, 4)))
-        
+
+    if len(colors) < 2:
+        raise ValueError("A custom palette must contain at least two colors (background and at least one foreground color).")    
+
     return np.array(colors, dtype='uint8')
 
 class CustomPaletteModel:
