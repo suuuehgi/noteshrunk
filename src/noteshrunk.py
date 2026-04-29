@@ -23,7 +23,7 @@ from skimage import io
 from skimage.color import rgb2lab, deltaE_ciede2000
 from sklearn.cluster import KMeans
 from skimage.filters import unsharp_mask
-from skimage.morphology import binary_opening, square, disk
+from skimage.morphology import binary_opening, binary_closing, square, disk
 
 
 def parse_args():
@@ -161,6 +161,11 @@ def parse_args():
         default=False,
         help='Apply morphological opening on the (binary) background mask.')
     parser.add_argument(
+        '--denoise_closing',
+        action='store_true',
+        default=False,
+        help='Apply morphological closing on the (binary) background mask.')
+    parser.add_argument(
         '--unsharp_mask',
         action='store_true',
         default=False,
@@ -171,6 +176,12 @@ def parse_args():
         type=int,
         default=3,
         help="Strength of median filtering")
+    parser.add_argument(
+        "-cs",
+        "--closing_strength",
+        type=float,
+        default=3,
+        help="Strength of closing filtering / radius of the structuring element (disk)")
     parser.add_argument(
         "-os",
         "--opening_strength",
@@ -609,6 +620,18 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
         kernel = disk(args.opening_strength) if args.opening_strength >= 1 else square(2)
         foreground_mask = binary_opening(
             foreground_mask.reshape(shape if len(shape) == 2 else shape[:-1]), kernel).flatten()
+
+    # morphological closing of the binary foreground mask to remove e.g. dust speckles
+    if args.denoise_closing:
+        logging.info(f'Page {idx}: Applying closing ...')
+        # disk(<1) results in id-operation or zero-matrix and is hence useless
+        kernel = disk(args.closing_strength) if args.closing_strength >= 1 else square(2)
+        foreground_mask = binary_closing(
+            foreground_mask.reshape(shape if len(shape) == 2 else shape[:-1]), kernel).flatten()
+
+    if args.denoise_opening or args.denoise_closing:
+        if image.dtype == bool:
+            image = ~foreground_mask
 
     if image.dtype != bool:
         labels = np.zeros(image.shape[0], dtype='uint8')
