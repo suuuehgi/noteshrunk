@@ -55,16 +55,16 @@ Morphological Opening swallows fine structures, but unsharp masking helps preser
     <td><code>Original Image (own)</code></td>
   </tr>
   <tr>
-    <td><img src="https://github.com/suuuehgi/noteshrunk/blob/main/examples/example_2-opening.jpg?raw=True" alt="Morphological Opening" width="970" height="217"/></td>
+    <td><img src="https://github.com/suuuehgi/noteshrunk/blob/main/examples/example_2-closing.jpg?raw=True" alt="Morphological Closing" width="970" height="217"/></td>
   </tr>
   <tr>
-    <td><code>noteshrunk -w --denoise_opening -os .9</code></td>
+    <td><code>noteshrunk -w --denoise_closing -cs 1.5</code></td>
   </tr>
   <tr>
     <td><img src="https://github.com/suuuehgi/noteshrunk/blob/main/examples/example_2-unsharp.jpg?raw=True" alt="Unsharp Masking" width="970" height="217"/></td>
   </tr>
   <tr>
-    <td><code>noteshrunk -w --unsharp_mask </code></td>
+    <td><code>noteshrunk -w --unsharp_mask -ua 5 --denoise_closing -cs 1.5</code></td>
   </tr>
 </table>
 
