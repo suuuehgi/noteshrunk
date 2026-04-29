@@ -130,7 +130,7 @@ def parse_args():
         "-tb",
         "--threshold_binarize",
         type=int,
-        default=80,
+        default=60,
         choices=range(0, 101),  # Allow values between 0 and 100
         metavar="[1-100]",
         help="Gray value in percent for a pixel to become white.")
@@ -881,6 +881,17 @@ def process_image(file, output_filename, idx, args, global_palette=None):
     """
     image = io.imread(file)
 
+    processed_images = []
+
+    logging.info(f'Processing image {idx}')
+    if args.local_palette:
+        color_palette, kmeans_model = create_palette(image, args, idx + 1)
+    else:
+        color_palette, kmeans_model = global_palette
+
+    image = apply_color_palette(image, color_palette, kmeans_model, args, idx + 1)
+
+    # Binarize
     if args.binarize:
         logging.info(f'Page {idx}: Applying binarization using a threshold of {args.threshold_binarize} % ...')
         if len(image.shape) == 2:
@@ -894,16 +905,6 @@ def process_image(file, output_filename, idx, args, global_palette=None):
         # RGB
         else:
             image = np.array(Image.fromarray(image).convert('L')) > 255 * args.threshold_binarize / 100
-
-    processed_images = []
-
-    logging.info(f'Processing image {idx}')
-    if args.local_palette:
-        color_palette, kmeans_model = create_palette(image, args, idx + 1)
-    else:
-        color_palette, kmeans_model = global_palette
-
-    image = apply_color_palette(image, color_palette, kmeans_model, args, idx + 1)
 
     if image is None:
         return (idx, False)
