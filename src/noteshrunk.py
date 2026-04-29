@@ -20,6 +20,7 @@ import numpy as np
 from PIL import Image
 from scipy.ndimage import median_filter
 from skimage import io
+from skimage.color import rgb2lab, deltaE_ciede2000
 from sklearn.cluster import KMeans
 from skimage.filters import unsharp_mask
 from skimage.morphology import binary_opening, square, disk
@@ -46,6 +47,12 @@ def parse_args():
         default='output.pdf',
         type=Path,
         help='Output PDF file path.')
+    parser.add_argument(
+        '-b',
+        '--black',
+        action='store_true',
+        default=False,
+        help='Replace the color closest to black with black.')
     parser.add_argument(
         '-w',
         '--white_background',
@@ -95,9 +102,8 @@ def parse_args():
         '--skip_empty',
         action='store_true',
         default=False,
-        help='Autoremove blank pages. Pages with a coverage (after removing about 6 % at the margin) below <-te> will be removed.')
+        help='Autoremove blank pages. Pages with a coverage (after removing about 6 percent at the margin) below <-te> will be removed.')
     parser.add_argument(
-        '-b',
         '--binarize',
         action='store_true',
         default=False,
@@ -576,6 +582,7 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
         foreground_mask = ~image.copy()
 
     else:
+        logging.debug(f'Getting foreground mask ...')
         foreground_mask = get_foreground_mask(
             image,
             background_color=color_palette[0],
@@ -583,10 +590,11 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
             threshold_value=args.threshold_value)
 
     if args.skip_empty:
-        Y, X = shape
+        logging.debug(f'Calculating coverage ...')
+        Y, X = shape if len(shape) == 2 else shape[:-1]
         # subtract a small safety margin
         delta = int(round(X * .06, 0))
-        coverage = 1000 * foreground_mask.reshape(shape)[delta:Y-delta, delta:X-delta].mean()
+        coverage = 1000 * foreground_mask.reshape([Y,X])[delta:Y-delta, delta:X-delta].mean()
 
         if coverage <= args.threshold_empty:
             logging.info('Removing page {} with coverage of {} (<= {}) ‰.'.format(idx, round(coverage, 1), args.threshold_empty))
@@ -617,11 +625,20 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
             pmax = color_palette.max()
             color_palette = 255 * (color_palette - pmin) / (pmax - pmin)
             color_palette = color_palette.round(0).astype('uint8')
+            logging.info(f'Color palette now: {color_palette}')
+
+        if args.black:
+            logging.info(f'Page {idx}: Setting black ...')
+            idx_black = np.argmin([deltaE_ciede2000(rgb2lab(c / 255), [0,0,0]) for c in color_palette])
+            logging.info(f'Page {idx}: Setting {color_palette[idx_black]} to [0,0,0] ...')
+            color_palette[idx_black] = [0,0,0]
 
         image = color_palette[labels]
 
-    # set background to the background color
-    image[~foreground_mask] = color_palette[0]
+    if not args.binarize:
+        logging.info(f'Setting background color {color_palette[0]}')
+        # set background to the background color
+        image[~foreground_mask] = color_palette[0]
 
     if args.unsharp_mask:
         logging.info(f'Page {idx}: Applying unsharp mask filtering ...')
@@ -775,10 +792,13 @@ def save_as_pdf(image, filename, args, idx):
 
     logging.info(f'Page {idx}: Saving page as {filename} ...')
     pdf = Image.fromarray(image)
-    pdf.save(filename, 'PDF',
-             dpi=(args.dpi, args.dpi),
-             quality=args.quality,
-             optimize=True)
+    if image.dtype == 'bool':
+        pdf.save(filename, 'PDF')
+    else:
+        pdf.save(filename, 'PDF',
+                 dpi=(args.dpi, args.dpi),
+                 quality=args.quality,
+                 optimize=True)
 
 
 def merge_pdfs(filename_paths, args):
@@ -855,7 +875,6 @@ def process_image(file, output_filename, idx, args, global_palette=None):
     processed_images = []
 
     logging.info(f'Processing image {idx}')
-
     if args.local_palette:
         color_palette, kmeans_model = create_palette(image, args, idx + 1)
     else:
@@ -915,9 +934,11 @@ def main():
     args = parse_args()
 
     if args.verbose == 1:
-        logging.basicConfig(encoding='utf-8', format="%(levelname)s:%(message)s", level=logging.INFO)
-    if args.verbose == 2:
-        logging.basicConfig(encoding='utf-8', format="%(lineno)d-%(levelname)s:%(message)s", level=logging.DEBUG)
+        logging.basicConfig(encoding='utf-8', format="%(lineno)d-%(levelname)s:%(message)s", level=logging.INFO)
+    elif args.verbose == 2:
+        logging.basicConfig(encoding='utf-8', format="%(lineno)d-%(levelname)s:%(message)s", level=logging.WARNING)
+    else:
+        logging.basicConfig(encoding='utf-8', format="%(levelname)s:%(message)s", level=logging.DEBUG)
 
     check_command_exists('gs')
 
