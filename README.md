@@ -3,7 +3,7 @@
 This Python script compresses images by reducing the number of colors and optimizing the image representation.
 The idea of the program is to optimize scanned documents.
 It uses KMeans clustering to reduce the number of colors (higher contrast, smaller file size) and offers various options to customize the compression process.
-All supplied images are then saved as a multi-page PDF.
+All supplied images are then saved either as images or as a multi-page PDF.
 
 The color space of the input image (black-and-white / grayscale / color) is preserved as long as you use a local (per page) color palette.
 Otherwise, images with smaller color spaces will be adapted (black-and-white -> grayscale / color or grayscale -> color) to the color space of the image with the largest color space.
@@ -158,14 +158,14 @@ noteshrunk [-h] [-o OUTPUT] [-b] [-w] [-n] [-s] [-c N_COLORS] [-d DPI]
 ### Arguments
 
 * `files`: A list of paths to the input image files.
-* `-o`, `--output`: Path to the output PDF file (default: `output.pdf`).
+* `-o`, `--output`: Path to the output file (default: `output.pdf`).
 * `-b`, `--black`: Replace the color closest to black with black.
 * `-w`, `--white_background`: Use white background instead of dominant color.
 * `-n`, `--normalize`: Normalize the output image / perform a global contrast stretch.
 * `-s`, `--saturate`: Maximize saturation in the output image.
 * `-c`, `--n_colors`: Number of colors in the palette (default: 8).
 * `-d`, `--dpi`: DPI value of the input image/-s (default: 300).
-* `-q`, `--quality`: JPEG quality of the images embedded in the PDF (1-100, default: 75).
+* `-q`, `--quality`: JPEG quality of the output images (or images embedded in the PDF) (1-100, default: 75).
 * `-l`, `--local_palette`: Create an individual color palette for each image (by sampling a percentage of the pixels of that image) instead of a global palette.
 * `-p`, `--palette`: Custom color palette as comma-separated hex codes (e.g., "#FFFFFF,#FF0000,#000000"). The first color is used as the background.
 * `--percentage`: Percentage of pixels to sample from each image. (default: 100).

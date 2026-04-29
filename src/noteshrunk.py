@@ -821,9 +821,9 @@ def check_file_and_prompt(filename):
     return filename
 
 
-def save_as_pdf(image, filename, args, idx):
+def save_as_file(image, filename, args, idx):
     """
-    Saves a single <image> as a PDF <filename>.
+    Saves a single image. Format is inferred from the filename extension.
 
     Args:
         image (np.array): The image to save
@@ -833,17 +833,25 @@ def save_as_pdf(image, filename, args, idx):
     Returns:
         None
     """
-
     logging.info(f'Page {idx}: Saving page as {filename} ...')
-    pdf = Image.fromarray(image)
-    if image.dtype == 'bool':
-        pdf.save(filename, 'PDF')
-    else:
-        pdf.save(filename, 'PDF',
-                 dpi=(args.dpi, args.dpi),
-                 quality=args.quality,
-                 optimize=True)
 
+    # JPEG does not support 1-bit boolean images, convert to 8-bit grayscale
+    if image.dtype == 'bool' and filename.suffix.lower() in ['.jpg', '.jpeg']:
+        image = (image * 255).astype('uint8')
+
+    img_out = Image.fromarray(image)
+
+    if image.dtype == 'bool' and filename.suffix.lower() == '.pdf':
+        img_out.save(filename, 'PDF')
+    else:
+        # Build kwargs based on supported format features
+        save_kwargs = {'dpi': (args.dpi, args.dpi)}
+        if filename.suffix.lower() in ['.jpg', '.jpeg', '.pdf']:
+            save_kwargs.update({'quality': args.quality, 'optimize': True})
+        elif filename.suffix.lower() == '.png':
+            save_kwargs.update({'optimize': True})
+
+        img_out.save(filename, **save_kwargs)
 
 def merge_pdfs(filename_paths, args):
     """
@@ -930,7 +938,7 @@ def process_image(file, output_filename, idx, args, global_palette=None):
     if image is None:
         return (idx, False)
     else:
-        save_as_pdf(image, output_filename, args, idx + 1)
+        save_as_file(image, output_filename, args, idx + 1)
         return (idx, True)
 
 
@@ -1048,10 +1056,17 @@ def main():
     else:
         logging.basicConfig(encoding='utf-8', format="%(levelname)s:%(message)s", level=logging.WARNING)
 
+    valid_extensions = ['.pdf', '.png', '.jpg', '.jpeg', '.tif', '.tiff']
+    if args.output.suffix.lower() not in valid_extensions:
+        logging.critical(f"Unsupported output file extension '{args.output.suffix}'. Please use one of: {', '.join(valid_extensions)}")
+        sys.exit(1)
+
     check_command_exists('gs')
 
     file_paths = sort_filenames(args.files)
     check_file_existence(file_paths)
+
+    outfile_is_pdf = args.output.suffix.lower() == '.pdf'
 
     # Create a temporary folder at the output file location for storing intermediate PDFs.
     # This way the intermediate files are automatically deleted upon program exit.
@@ -1074,7 +1089,15 @@ def main():
             remove = []
             for idx, file in enumerate(file_paths):
 
-                output_filename = args.output.parent / tmp_dir / Path(file.name).with_suffix('.pdf')
+                if outfile_is_pdf:
+                    output_filename = args.output.parent / tmp_dir / Path(file.name).with_suffix('.pdf')
+
+                else:
+                    # If saving as images: append _001, _002 if multiple files, otherwise use exact name
+                    if len(file_paths) > 1:
+                        output_filename = args.output.with_name(f"{args.output.stem}_{idx+1:04d}{args.output.suffix}")
+                    else:
+                        output_filename = args.output
 
                 # E.g. the same input file multiple times
                 if output_filename in intermediate_pdf_paths or output_filename.exists():
@@ -1101,12 +1124,12 @@ def main():
                 logging.critical(f"Caught an error: {e}")
                 sys.exit(1)
 
-
-        if args.keep_intermediate:
-            logging.info('Skipping the deletion of intermediate PDFs (folder {tmp_dir}).')
-
-        merge_pdfs(intermediate_pdf_paths, args)
-
+        if outfile_is_pdf:
+            if args.keep_intermediate:
+                logging.info(f'Skipping the deletion of intermediate PDFs (folder {tmp_dir}).')
+            merge_pdfs(intermediate_pdf_paths, args)
+        else:
+            logging.info(f'Successfully saved {len(file_paths) - len(remove)} image(s) to {args.output.parent}')
 
 if __name__ == "__main__":
     main()
