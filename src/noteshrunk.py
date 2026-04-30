@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
-VERSION = '1.7.4'
+VERSION = '1.8.0'
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -22,7 +22,7 @@ from scipy.ndimage import median_filter
 from skimage import io
 from skimage.color import rgb2lab, deltaE_ciede2000, rgb2hsv, hsv2rgb
 from sklearn.cluster import KMeans
-from skimage.filters import unsharp_mask
+from skimage.filters import unsharp_mask, threshold_li, threshold_otsu
 from skimage.morphology import binary_opening, binary_closing, footprint_rectangle, disk
 
 
@@ -31,7 +31,9 @@ def parse_args():
     Parses command line arguments.
 
     Returns:
-        argparse.Namespace: A namespace that holds the arguments as attributes.
+        tuple (I1, I1):
+            I1: list of lists of strings of all possible arguments (incl. flags) [ ['-b', '--black'], ['-w', ...]
+            I2: argparse.Namespace: A namespace that holds the arguments as attributes.
     """
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -120,7 +122,7 @@ def parse_args():
         '--binarize',
         action='store_true',
         default=False,
-        help='Trivial binarization by thresholing with <-tb>')
+        help='Binarize the image. The threshold is automatically being calculated if --threshold_binarize is not given.')
     parser.add_argument(
         '-te',
         '--threshold_empty',
@@ -143,7 +145,6 @@ def parse_args():
         "-tb",
         "--threshold_binarize",
         type=int,
-        default=60,
         choices=range(0, 101),  # Allow values between 0 and 100
         metavar="[1-100]",
         help="Gray value in percent for a pixel to become white.")
@@ -231,9 +232,33 @@ def parse_args():
         version=VERSION,
         help='Show program version and exit')
 
+    # Try to auto-complete typos
+    # E.g. `--unsharp_radiu` --> `--unsharp_radius`
     argcomplete.autocomplete(parser)
-    return parser.parse_args()
 
+    total_arguments = [action.option_strings for action in parser._actions]
+
+    return total_arguments, parser.parse_args()
+
+def argument_used(flag, total_arguments):
+    """
+    Determine if the script was executed using a certain flag.
+
+    Args:
+        flag (str): Flag / argument to test for
+        total_arguments: list of lists of strings of all possible arguments (incl. flags) [ ['-b', '--black'], ['-w', ...]
+        
+
+    Returns:
+        bool: True if any of the synonyms are present in sys.argv, else False
+    """
+    # Iterate through all flags
+    for arguments in total_arguments:
+        if flag in arguments:
+            # Return True if any of the available arguments was used
+            # (e.g. also return True if "-tb" was used instead of "--threshold_binarize")
+            return any([f in sys.argv for f in arguments])
+    return False
 
 def sort_filenames(filenames):
     """
@@ -249,7 +274,6 @@ def sort_filenames(filenames):
     file_paths.sort(key=lambda path: natural_sort_key(path.name))
     return file_paths
 
-
 def natural_sort_key(s):
     """
     Generate a key for natural sort.
@@ -262,7 +286,6 @@ def natural_sort_key(s):
     """
     return [int(text) if text.isdigit() else text.lower()
             for text in re.split(r'(\d+)', s)]
-
 
 def sample_pixels(image, percentage):
     """
@@ -294,7 +317,6 @@ def sample_pixels(image, percentage):
         else:
             return image.reshape((-1, 3))[indices]
 
-
 def perform_kmeans(pixels, n_clusters, args):
     """
     Performs k-means clustering on the image and return the cluster centers and the model.
@@ -321,7 +343,6 @@ def perform_kmeans(pixels, n_clusters, args):
 
     return kmeans.cluster_centers_, kmeans
 
-
 def pack_rgb(rgb):
     """
     Pack a 24-bit RGB triple into a single integer.
@@ -346,7 +367,6 @@ def pack_rgb(rgb):
 
     return packed
 
-
 def unpack_rgb(packed):
     """
     Unpack a single integer or array of integers into one or more 24-bit RGB values.
@@ -361,7 +381,6 @@ def unpack_rgb(packed):
     return np.column_stack(((packed >> 16) & 0xff,
                             (packed >> 8) & 0xff,
                             packed & 0xff)).astype('uint8')
-
 
 def rgb_to_sv(rgb):
     """
@@ -391,7 +410,6 @@ def rgb_to_sv(rgb):
     value = rgb_max / 255.0
 
     return saturation, value
-
 
 def create_palette(image_s, args, idx=None, use_global_palette=False):
     """
@@ -478,7 +496,6 @@ def create_palette(image_s, args, idx=None, use_global_palette=False):
     else:
         return np.vstack([True, False]), None
 
-
 def get_foreground_mask(
         image,
         background_color,
@@ -538,7 +555,6 @@ def quantize_colors(image, color_depth=6):
     # Truncate last shift bits and add half of the clipped bin
     return (image // 2**(shift)) * 2**(shift) + 2**(shift - 1)
 
-
 def get_background_color(pixels, bits_per_channel=6):
     """
     Estimate the background color from an image or array of RGB colors by finding the most frequent color in the image.
@@ -577,7 +593,6 @@ def get_background_color(pixels, bits_per_channel=6):
         elif pixels.dtype == bool:
             # background color is white in black-and-white images
             return np.array([True])
-
 
 def apply_color_palette(image, color_palette, kmeans_model, args, idx):
     """
@@ -739,7 +754,6 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
     else:
         return image.reshape(shape)
 
-
 def generate_random_string(length=8):
     """
     Generate a random string of a given length consisting of ASCII letters and digits.
@@ -752,7 +766,6 @@ def generate_random_string(length=8):
     """
     letters = string.ascii_lowercase + string.digits
     return ''.join(random.choice(letters) for i in range(length))
-
 
 def rename_with_random_string(filename):
     """
@@ -768,7 +781,6 @@ def rename_with_random_string(filename):
     random_str = generate_random_string()
     new_filename = f"{path.stem}-{random_str}{path.suffix}"
     return path.with_name(new_filename)
-
 
 def handle_file_conflict(filename):
     """
@@ -794,7 +806,6 @@ def handle_file_conflict(filename):
                 logging.info("Random name still results in a conflict. Generating a new name.")
     else:
         return filename
-
 
 def check_file_and_prompt(filename):
     """
@@ -830,7 +841,6 @@ def check_file_and_prompt(filename):
                 break
 
     return filename
-
 
 def save_as_file(image, filename, args, idx):
     """
@@ -897,8 +907,7 @@ def merge_pdfs(filename_paths, args):
 
     logging.info(f'Output written to {args.output}')
 
-
-def process_image(file, output_filename, idx, args, global_palette=None):
+def process_image(file, output_filename, idx, args, total_arguments, global_palette=None):
     """
     Process a single image and save it as a PDF.
 
@@ -933,25 +942,33 @@ def process_image(file, output_filename, idx, args, global_palette=None):
 
     # Binarize
     if args.binarize:
-        logging.info(f'Page {idx}: Applying binarization using a threshold of {args.threshold_binarize} % ...')
-        if len(image.shape) == 2:
-            # Already binary
-            if image.dtype == 'bool':
-                pass
-            # Grayscale
-            else:
-                image = image > 255 * args.threshold_binarize / 100
 
-        # RGB
+        if image.dtype == 'bool':
+            # Already binary
+            logging.info(f'Page {idx}: Skipping binarization since the image is already binary.')
+
         else:
-            image = np.array(Image.fromarray(image).convert('L')) > 255 * args.threshold_binarize / 100
+            # Convert RGB to grayscale
+            if len(image.shape) == 3:
+                image = np.array( Image.fromarray(image).convert('L') )
+
+            # Determine binarization threshold using Li thresholding
+            # https://scikit-image.org/docs/stable/auto_examples/developers/plot_threshold_li.html
+            if not argument_used('--threshold_binarize', total_arguments=total_arguments):
+                logging.info(f'Page {idx}: Determining binarization threshold ...')
+                args.threshold_binarize = threshold_li(image, initial_guess=threshold_otsu)
+
+            else:
+                args.threshold_binarize = int( round( 255 * args.threshold_binarize / 100, 0 ) )
+
+            logging.info(f'Page {idx}: Applying binarization using a threshold of {int( round( 100 / 255 * args.threshold_binarize, 0 ) )} % ...')
+            image = image > args.threshold_binarize
 
     if image is None:
         return (idx, False)
     else:
         save_as_file(image, output_filename, args, idx + 1)
         return (idx, True)
-
 
 def check_file_existence(files):
     """
@@ -975,7 +992,6 @@ def check_file_existence(files):
         path = Path(file)
         if not path.exists():
             raise FileNotFoundError(f"File not found: {file}")
-
 
 def check_command_exists(command_name: str):
     """
@@ -1058,7 +1074,7 @@ def main():
     """
     The main function of the program.
     """
-    args = parse_args()
+    total_arguments, args = parse_args()
 
     if args.verbose == 1:
         logging.basicConfig(encoding='utf-8', format="%(lineno)d-%(levelname)s:%(message)s", level=logging.INFO)
@@ -1120,7 +1136,7 @@ def main():
                     output_filename = rename_with_random_string(output_filename)
 
                 threads.append(executor.submit(process_image, file=file, output_filename=output_filename, idx=idx, args=args,
-                                 global_palette=(color_palette, kmeans_model) if not args.local_palette else None))
+                                 total_arguments=total_arguments, global_palette=(color_palette, kmeans_model) if not args.local_palette else None))
 
                 intermediate_pdf_paths.append(output_filename)
 
