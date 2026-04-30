@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
-VERSION = '1.7.2'
+VERSION = '1.7.3'
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -1072,11 +1072,14 @@ def main():
         check_command_exists('gs')
 
     # Create a temporary folder at the output file location for storing intermediate PDFs.
-    # This way the intermediate files are automatically deleted upon program exit.
+    # This way the intermediate files are automatically deleted upon program exit
+    # (if not --keep_intermediate was used.).
     # Each image is converted to a single-page PDF before concatenation
     # afterwards, which reduces the memory footprint.
-    with tempfile.TemporaryDirectory(dir=os.getcwd(), prefix='tmp_pdfs-', delete=(not args.keep_intermediate)) as tmp_dir:
+    if outfile_is_pdf:
+        tmp_dir = Path( tempfile.mkdtemp(dir=args.output.parent, prefix='tmp_pdfs-') )
 
+    try:
         intermediate_pdf_paths = []
 
         if args.palette:
@@ -1092,8 +1095,9 @@ def main():
             remove = []
             for idx, file in enumerate(file_paths):
 
+                # Intermediate PDFs
                 if outfile_is_pdf:
-                    output_filename = args.output.parent / tmp_dir / Path(file.name).with_suffix('.pdf')
+                    output_filename = tmp_dir / Path(file.name).with_suffix('.pdf')
 
                 else:
                     # If saving as images: append _001, _002 if multiple files, otherwise use exact name
@@ -1128,11 +1132,16 @@ def main():
                 sys.exit(1)
 
         if outfile_is_pdf:
-            if args.keep_intermediate:
-                logging.info(f'Skipping the deletion of intermediate PDFs (folder {tmp_dir}).')
+            logging.info(f'Merging PDFs from {tmp_dir} ...')
             merge_pdfs(intermediate_pdf_paths, args)
         else:
             logging.info(f'Successfully saved {len(file_paths) - len(remove)} image(s) to {args.output.parent}')
+    finally:
+        if args.keep_intermediate:
+            logging.info(f'Skipping the deletion of intermediate PDFs (folder {tmp_dir}).')
+        else:
+            logging.debug(f'Deleting temporary folder {tmp_dir} ...')
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
 if __name__ == "__main__":
     main()
