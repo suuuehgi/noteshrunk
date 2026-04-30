@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
-VERSION = '1.8.0'
+VERSION = '1.8.1'
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -514,9 +514,9 @@ def get_foreground_mask(
     Returns:
         np.array: The binary mask of the foreground.
     """
-    assert image.shape[-1] in [1, 3]
+    assert (len(image.shape) == 2) and image.shape[-1] in [1, 3]
 
-    # color images
+    # RGB images
     if image.shape[-1] == 3:
         saturation_bg, value_bg = rgb_to_sv(background_color)
         saturation_image, value_image = rgb_to_sv(image)
@@ -628,19 +628,6 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
             threshold_saturation=args.threshold_saturation,
             threshold_value=args.threshold_value)
 
-    if args.skip_empty:
-        logging.debug(f'Calculating coverage ...')
-        Y, X = shape if len(shape) == 2 else shape[:-1]
-        # subtract a small safety margin
-        delta = int(round(X * .06, 0))
-        coverage = 1000 * foreground_mask.reshape([Y,X])[delta:Y-delta, delta:X-delta].mean()
-
-        if coverage <= args.threshold_empty:
-            logging.info('Removing page {} with coverage of {} (<= {}) ‰.'.format(idx, round(coverage, 1), args.threshold_empty))
-            return None
-        else:
-            logging.debug('Page {} has coverage of {} (> {}) ‰.'.format(idx, round(coverage, 1), args.threshold_empty))
-
     # morphological opening of the binary foreground mask to remove e.g. dust speckles
     if args.denoise_opening:
         logging.info(f'Page {idx}: Applying opening ...')
@@ -660,6 +647,19 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
     if args.denoise_opening or args.denoise_closing:
         if image.dtype == bool:
             image = ~foreground_mask
+
+    if args.skip_empty:
+        logging.debug(f'Calculating coverage ...')
+        Y, X = shape[:2]
+        # subtract a small safety margin
+        delta = int(round(X * .06, 0))
+        coverage = 1000 * foreground_mask.reshape([Y,X])[delta:Y-delta, delta:X-delta].mean()
+
+        if coverage <= args.threshold_empty:
+            logging.info('Removing page {} with coverage of {} (<= {}) ‰.'.format(idx, round(coverage, 1), args.threshold_empty))
+            return None
+        else:
+            logging.info('Page {} has coverage of {} (> {}) ‰.'.format(idx, round(coverage, 1), args.threshold_empty))
 
     if image.dtype != bool:
         labels = np.zeros(image.shape[0], dtype='uint8')
@@ -733,7 +733,6 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
 
         elif len(shape) == 2 and image.dtype == bool:
             logging.warning('Unsharp masking has no effect on binary / black-and-white images. Hence I skip this step ...')
-
 
     if args.denoise_median:
         logging.info(f'Page {idx}: Applying median filtering ...')
