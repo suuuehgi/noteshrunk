@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
-VERSION = '1.7.3'
+VERSION = '1.7.4'
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -169,15 +169,15 @@ def parse_args():
         default=False,
         help='Apply median denoising.')
     parser.add_argument(
-        '--denoise_opening',
-        action='store_true',
-        default=False,
-        help='Apply morphological opening on the (binary) background mask.')
-    parser.add_argument(
         '--denoise_closing',
         action='store_true',
         default=False,
         help='Apply morphological closing on the (binary) background mask.')
+    parser.add_argument(
+        '--denoise_opening',
+        action='store_true',
+        default=False,
+        help='Apply morphological opening on the (binary) background mask.')
     parser.add_argument(
         '--unsharp_mask',
         action='store_true',
@@ -680,9 +680,18 @@ def apply_color_palette(image, color_palette, kmeans_model, args, idx):
 
         if args.black:
             logging.info(f'Page {idx}: Setting black ...')
-            idx_black = np.argmin([deltaE_ciede2000(rgb2lab(c / 255), [0,0,0]) for c in color_palette])
-            logging.info(f'Page {idx}: Setting {color_palette[idx_black]} to [0,0,0] ...')
-            color_palette[idx_black] = [0,0,0]
+
+            # RGB images
+            if color_palette.shape[-1] == 3:
+                idx_black = np.argmin([deltaE_ciede2000(rgb2lab(c / 255), [0,0,0]) for c in color_palette])
+                logging.info(f'Page {idx}: Setting {color_palette[idx_black]} to [0,0,0] ...')
+                color_palette[idx_black] = [0,0,0]
+
+            # Grayscale / Binary images
+            else:
+                idx_black = np.argmin(color_palette)
+                logging.info(f'Page {idx}: Setting {color_palette[idx_black]} to [0] ...')
+                color_palette[idx_black] = [0]
 
         image = color_palette[labels]
 
