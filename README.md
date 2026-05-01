@@ -177,11 +177,11 @@ noteshrunk [-h] [-o OUTPUT] [-b] [-w] [-n] [-s] [-c N_COLORS] [-d DPI]
 * `-p`, `--palette`: Custom color palette as comma-separated hex codes (e.g., "#FFFFFF,#FF0000,#000000"). The first color is used as the background.
 * `--percentage`: Percentage of pixels to sample from each image. (default: 100).
 * `-e`, `--skip_empty`: Autoremove blank pages. Pages with a coverage (after removing about 6 percent at the margin) below `<-te>` will be removed.
-* `--binarize`: Trivial binarization by thresholing with `<-tb>`.
+* `--binarize`: Binarize the image. The threshold is automatically being calculated if `--threshold_binarize` is not given.
 * `-te`, `--threshold_empty`: Coverage in parts per thousand / permille below which a page should be discarded (default: 2).
 * `-j`, `--jobs`: Number of processes to use (default: number of CPU cores).
 * `-y`, `--overwrite`: Overwrite existing files without asking.
-* `-tb`, `--threshold_binarize`: Gray value in percent for a pixel to become white (default: 60).
+* `-tb`, `--threshold_binarize`: Gray value in percent for a pixel to become white (overwrites automatic thresholding).
 * `-ts`, `--threshold_saturation`: HSV saturation threshold (in percent) used for the background detection (default: 15).
 * `-tv`, `--threshold_value`: HSV value threshold (in percent) used for the background detection (default: 20).
 * `--denoise_median`: Apply median denoising.

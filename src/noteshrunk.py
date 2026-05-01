@@ -147,7 +147,7 @@ def parse_args():
         type=int,
         choices=range(0, 101),  # Allow values between 0 and 100
         metavar="[1-100]",
-        help="Gray value in percent for a pixel to become white.")
+        help="Gray value in percent for a pixel to become white (overwrites automatic thresholding).")
     parser.add_argument(
         "-ts",
         "--threshold_saturation",
