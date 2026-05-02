@@ -126,7 +126,7 @@ def parse_args():
     parser.add_argument(
         '-te',
         '--threshold_empty',
-        type=lambda x: np.clip(x, a_min=0, a_max=None),
+        type=lambda x: np.clip(int(x), a_min=0, a_max=None),
         default=2,
         help='Coverage in parts per thousand / permille below which a page should be discarded.')
     parser.add_argument(
@@ -300,6 +300,11 @@ def sample_pixels(image, percentage):
                     (N*M, 3) in case of color images
                     (N*M, 1) in case of grayscale and black-and-white images
     """
+    # If image has an alpha channel (4 channels), drop it
+    if len(image.shape) == 3 and image.shape[2] == 4:
+        logging.info(f'Found alpha channel while sampling: Dropping it.')
+        image = image[:, :, :3]
+
     if percentage == 100:
         if len(image.shape) == 2:
             return image.reshape((-1, 1))
@@ -927,11 +932,17 @@ def process_image(file, output_filename, idx, args, total_arguments, global_pale
     Returns:
         tuple (idx, bool): idx: Same as input, bool: True: Success, False: Page is to be removed.
     """
+    logging.info(f'Processing image {idx}')
+
     image = io.imread(file)
+    
+    # If image has an alpha channel (4 channels), drop it
+    if len(image.shape) == 3 and image.shape[2] == 4:
+        logging.info(f'Found alpha channel: Dropping it.')
+        image = image[:, :, :3]
 
     processed_images = []
 
-    logging.info(f'Processing image {idx}')
     if args.local_palette:
         color_palette, kmeans_model = create_palette(image, args, idx + 1)
     else:
@@ -1129,9 +1140,10 @@ def main():
                         output_filename = args.output.with_name(f"{args.output.stem}_{idx+1:04d}{args.output.suffix}")
                     else:
                         output_filename = args.output
+                        print(output_filename)
 
                 # E.g. the same input file multiple times
-                if output_filename in intermediate_pdf_paths or output_filename.exists():
+                if output_filename in intermediate_pdf_paths or (output_filename.exists() and not args.overwrite):
                     output_filename = rename_with_random_string(output_filename)
 
                 threads.append(executor.submit(process_image, file=file, output_filename=output_filename, idx=idx, args=args,
@@ -1161,11 +1173,12 @@ def main():
         else:
             logging.info(f'Successfully saved {len(file_paths) - len(remove)} image(s) to {args.output.parent}')
     finally:
-        if args.keep_intermediate:
-            logging.info(f'Skipping the deletion of intermediate PDFs (folder {tmp_dir}).')
-        else:
-            logging.debug(f'Deleting temporary folder {tmp_dir} ...')
-            shutil.rmtree(tmp_dir, ignore_errors=True)
+        if outfile_is_pdf:
+            if args.keep_intermediate:
+                logging.info(f'Skipping the deletion of intermediate PDFs (folder {tmp_dir}).')
+            else:
+                logging.debug(f'Deleting temporary folder {tmp_dir} ...')
+                shutil.rmtree(tmp_dir, ignore_errors=True)
 
 if __name__ == "__main__":
     main()
