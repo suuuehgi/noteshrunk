@@ -61,9 +61,11 @@ class PaletteEditor(QtWidgets.QWidget):
         self._swatch_layout.setSpacing(4)
 
         self._swatch_container = QtWidgets.QWidget(self._swatch_page)
-        self._swatch_container_layout = QtWidgets.QVBoxLayout(self._swatch_container)
+        # Grid layout so we can adapt number of columns to available width
+        self._swatch_container_layout = QtWidgets.QGridLayout(self._swatch_container)
         self._swatch_container_layout.setContentsMargins(0, 0, 0, 0)
-        self._swatch_container_layout.setSpacing(4)
+        self._swatch_container_layout.setHorizontalSpacing(8)
+        self._swatch_container_layout.setVerticalSpacing(4)
         self._swatch_layout.addWidget(self._swatch_container)
 
         btn_row = QtWidgets.QHBoxLayout()
@@ -107,8 +109,10 @@ class PaletteEditor(QtWidgets.QWidget):
             colors = []
             for raw in text.split(","):
                 h = raw.strip()
-                if not h: continue
-                if not h.startswith("#"): h = "#" + h
+                if not h:
+                    continue
+                if not h.startswith("#"):
+                    h = "#" + h
                 colors.append(h)
             self._colors = colors
         else:
@@ -146,34 +150,60 @@ class PaletteEditor(QtWidgets.QWidget):
             self.textChanged.emit(self.palette_text())
 
     def _pick_color(self, index: int) -> None:
-        if not (0 <= index < len(self._colors)): return
+        if not (0 <= index < len(self._colors)):
+            return
         initial = QtGui.QColor(self._colors[index])
         color = QtWidgets.QColorDialog.getColor(initial, self, "Pick colour")
-        if not color.isValid(): return
+        if not color.isValid():
+            return
         self._colors[index] = color.name().upper()
         self._rebuild_swatches()
         self.textChanged.emit(self.palette_text())
 
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # type: ignore[override]
+        super().resizeEvent(event)
+        available = max(self.width(), 1)
+        cols = max(1, available // 150)
+        if cols != getattr(self, '_last_cols', 0):
+            self._rebuild_swatches()
+
     def _rebuild_swatches(self) -> None:
-        while self._swatch_container_layout.count():
-            item = self._swatch_container_layout.takeAt(0)
+        available = max(self.width(), 1)
+        cols = max(1, available // 150)
+        self._last_cols = cols
+
+        layout = self._swatch_container_layout
+        while layout.count():
+            item = layout.takeAt(0)
             w = item.widget()
-            if w is not None: w.deleteLater()
+            if w is not None:
+                w.hide()
+                w.deleteLater()
+
+        if not self._colors:
+            hint = QtWidgets.QLabel("No colours defined. Click 'Add colour' or switch to text mode.", self._swatch_container)
+            hint.setStyleSheet("color: gray; font-size: 11px;")
+            layout.addWidget(hint, 0, 0, 1, 1)
+            hint.show()
+            return
 
         for idx, hex_color in enumerate(self._colors):
-            row = QtWidgets.QWidget(self._swatch_container)
-            hl = QtWidgets.QHBoxLayout(row)
+            row = idx // cols
+            col = idx % cols
+
+            row_widget = QtWidgets.QWidget(self._swatch_container)
+            hl = QtWidgets.QHBoxLayout(row_widget)
             hl.setContentsMargins(0, 0, 0, 0)
             hl.setSpacing(4)
 
-            btn = QtWidgets.QPushButton("", row)
+            btn = QtWidgets.QPushButton("", row_widget)
             btn.setFixedSize(32, 20)
             btn.setStyleSheet(f"background: {hex_color}; border: 1px solid #444;")
             btn.clicked.connect(lambda _=False, i=idx: self._pick_color(i))
 
-            label = QtWidgets.QLabel(hex_color, row)
+            label = QtWidgets.QLabel(hex_color, row_widget)
 
-            remove_btn = QtWidgets.QToolButton(row)
+            remove_btn = QtWidgets.QToolButton(row_widget)
             remove_btn.setText("×")
             remove_btn.clicked.connect(lambda _=False, i=idx: self._remove_swatch(i))
 
@@ -182,13 +212,8 @@ class PaletteEditor(QtWidgets.QWidget):
             hl.addStretch(1)
             hl.addWidget(remove_btn)
 
-            self._swatch_container_layout.addWidget(row)
-
-        if not self._colors:
-            hint = QtWidgets.QLabel("No colours defined. Click 'Add colour' or switch to text mode.", self._swatch_container)
-            hint.setStyleSheet("color: gray; font-size: 11px;")
-            self._swatch_container_layout.addWidget(hint)
-
+            layout.addWidget(row_widget, row, col)
+            row_widget.show()
 
 class RenderWorker(QtCore.QThread):
     finished = QtCore.Signal(str)
@@ -736,7 +761,9 @@ class SettingsPanel(QtWidgets.QScrollArea):
 
         self.local_palette_chk = QtWidgets.QCheckBox("Local palette per page", box)
         self.local_palette_chk.setChecked(False)
-        self.local_palette_chk.stateChanged.connect(self.settingChanged)
+
+        self.custom_palette_chk = QtWidgets.QCheckBox("Use custom palette", box)
+        self.custom_palette_chk.setChecked(False)
 
         self.percentage_spin = NoWheelDoubleSpinBox(box)
         self.percentage_spin.setRange(1.0, 100.0)
@@ -746,10 +773,21 @@ class SettingsPanel(QtWidgets.QScrollArea):
 
         self.palette_editor = PaletteEditor(box)
         self.palette_editor.textChanged.connect(lambda _text: self.settingChanged.emit())
+        self.palette_editor.setEnabled(False)
+
+        # Mutual exclusivity between local and custom palette modes
+        self.local_palette_chk.toggled.connect(self._on_local_palette_toggled)
+        self.custom_palette_chk.toggled.connect(self._on_custom_palette_toggled)
+        self.local_palette_chk.stateChanged.connect(self.settingChanged)
+        self.custom_palette_chk.stateChanged.connect(self.settingChanged)
 
         layout.addWidget(self.local_palette_chk)
+        layout.addWidget(self.custom_palette_chk)
         layout.addWidget(self._labeled("Sampling percentage", self.percentage_spin))
-        layout.addWidget(self._labeled("Custom palette", self.palette_editor))
+
+        custom_label = QtWidgets.QLabel("Custom palette", box)
+        layout.addWidget(custom_label)
+        layout.addWidget(self.palette_editor)
 
         info = QtWidgets.QLabel("Preview uses per-page palette. Final export uses global palette when local palette is disabled.", box)
         info.setWordWrap(True)
@@ -759,6 +797,7 @@ class SettingsPanel(QtWidgets.QScrollArea):
         self.global_palette_info.setVisible(False)
 
         self._widgets["local_palette"] = self.local_palette_chk
+        self._widgets["custom_palette"] = self.custom_palette_chk
         self._widgets["percentage"] = self.percentage_spin
         self._widgets["palette"] = self.palette_editor
         return box
@@ -901,6 +940,32 @@ class SettingsPanel(QtWidgets.QScrollArea):
     def set_global_palette_info_visible(self, visible: bool) -> None:
         self.global_palette_info.setVisible(visible)
 
+    def _on_custom_palette_toggled(self, checked: bool) -> None:
+        # When custom palette is enabled, disable local palette and enable editor
+        if checked:
+            if hasattr(self, 'local_palette_chk'):
+                self.local_palette_chk.blockSignals(True)
+                self.local_palette_chk.setChecked(False)
+                self.local_palette_chk.blockSignals(False)
+        # Editor is only active when custom palette is on
+        if hasattr(self, 'palette_editor'):
+            self.palette_editor.setEnabled(checked)
+
+    def _on_local_palette_toggled(self, checked: bool) -> None:
+        # When local palette is enabled, turn off custom palette and disable editor
+        if checked and hasattr(self, 'custom_palette_chk'):
+            self.custom_palette_chk.blockSignals(True)
+            self.custom_palette_chk.setChecked(False)
+            self.custom_palette_chk.blockSignals(False)
+        # If local palette is active, editor is disabled regardless of custom state
+        if hasattr(self, 'palette_editor'):
+            if checked:
+                self.palette_editor.setEnabled(False)
+            else:
+                # If local palette is off, editor follows custom checkbox
+                if hasattr(self, 'custom_palette_chk'):
+                    self.palette_editor.setEnabled(self.custom_palette_chk.isChecked())
+
     def to_args(self) -> List[str]:
         args: List[str] = []
         ncolors: NoWheelSpinBox = self._widgets["n_colors"]  # type: ignore[assignment]
@@ -924,11 +989,13 @@ class SettingsPanel(QtWidgets.QScrollArea):
 
         palette_editor: PaletteEditor = self._widgets["palette"]  # type: ignore[assignment]
         palette_text = palette_editor.palette_text().strip()
-        if palette_text:
+        local_palette: QtWidgets.QCheckBox = self._widgets["local_palette"]  # type: ignore[assignment]
+        custom_palette: QtWidgets.QCheckBox = self._widgets["custom_palette"]  # type: ignore[assignment]
+
+        if custom_palette.isChecked() and palette_text:
             args += ["--palette", palette_text]
-        else:
-            if self._widgets["local_palette"].isChecked():  # type: ignore[union-attr]
-                args.append("--local_palette")
+        elif local_palette.isChecked():
+            args.append("--local_palette")
 
         if self._widgets["denoise_median"].isChecked():  # type: ignore[union-attr]
             args.append("--denoise_median")
@@ -1226,14 +1293,18 @@ class MainWindow(QtWidgets.QMainWindow):
         pixmap = QtGui.QPixmap(str(path))
         self.preview_widget.set_original(pixmap)
         files = self.page_strip.ordered_files()
-        show_info = (not self.settings_panel._widgets["local_palette"].isChecked()) and len(files) > 1  # type: ignore[union-attr]
+        local_on = self.settings_panel._widgets["local_palette"].isChecked()  # type: ignore[union-attr]
+        custom_on = self.settings_panel._widgets.get("custom_palette").isChecked() if "custom_palette" in self.settings_panel._widgets else False  # type: ignore[union-attr]
+        show_info = (not local_on and not custom_on and len(files) > 1)
         self.settings_panel.set_global_palette_info_visible(show_info)
         if self.auto_preview_chk.isChecked():
             self._debounce_timer.start()
 
     def _on_setting_changed(self) -> None:
         files = self.page_strip.ordered_files()
-        show_info = (not self.settings_panel._widgets["local_palette"].isChecked()) and len(files) > 1  # type: ignore[union-attr]
+        local_on = self.settings_panel._widgets["local_palette"].isChecked()  # type: ignore[union-attr]
+        custom_on = self.settings_panel._widgets.get("custom_palette").isChecked() if "custom_palette" in self.settings_panel._widgets else False  # type: ignore[union-attr]
+        show_info = (not local_on and not custom_on and len(files) > 1)
         self.settings_panel.set_global_palette_info_visible(show_info)
         if self.auto_preview_chk.isChecked():
             self._debounce_timer.start()
@@ -1282,7 +1353,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def _ask_for_files(self) -> List[Path]:
         dlg = QtWidgets.QFileDialog(self, "Select input images")
         dlg.setFileMode(QtWidgets.QFileDialog.ExistingFiles)
-        dlg.setNameFilter("Images (*.pnm *.png *.jpg *.jpeg *.tif *.tiff)")
+        dlg.setNameFilter("Images (*.pdf *.png *.jpg *.jpeg *.tif *.tiff)")
         if not dlg.exec(): return []
         return [Path(f) for f in dlg.selectedFiles()]
 
